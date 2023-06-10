@@ -62,7 +62,7 @@ class MouseLightJsonWriter:
 
     @staticmethod
     def _populate_samples(
-        d: dict, morphology: Morphology, structure_type: int = -1
+            d: dict, morphology: Morphology, structure_type: int = -1
     ) -> None:
         """
         Populate the dictionary with the Morphology compartments
@@ -79,15 +79,16 @@ class MouseLightJsonWriter:
 
         """
         if structure_type in (
-            Morphology.DENDRITE,
-            Morphology.BASAL_DENDRITE,
-            Morphology.APICAL_DENDRITE,
+                Morphology.DENDRITE,
+                Morphology.BASAL_DENDRITE,
+                Morphology.APICAL_DENDRITE,
         ):
             structure_name = "dendrite"
         else:
             # FIXME: assume it's axon
             structure_name = "axon"
-        d[structure_name] = []
+        if structure_name not in d:
+            d[structure_name] = []
         if structure_type == -1:
             compartments = morphology.compartment_list
         else:
@@ -139,7 +140,7 @@ class MouseLightJsonWriter:
         ]
 
     @staticmethod
-    def _find_unique_structures(morphology: Morphology) -> None:
+    def _find_unique_structures(morphology: Morphology) -> list:
         """
         Find the unique CCF structures in the given Morphology object.
 
@@ -190,37 +191,36 @@ class MouseLightJsonWriter:
         data["comment"] = ""
         data["neurons"] = []
         for i in range(morphology.num_trees):
-            neuron_dict = {}
+            tree = Morphology(morphology.tree(i))
 
             # Top-level metadata
-            neuron_dict["idString"] = Path(output_path).stem
-            neuron_dict["DOI"] = "n/a"
-            neuron_dict["sample"] = {}
-            neuron_dict["label"] = {}
-            # FIXME: hardcoded to CCFv3
-            neuron_dict["annotationSpace"] = {
-                "version": 3,
-                "description": "Annotation Space: CCFv3.0 Axes> X: Anterior-Posterior; Y: Inferior-Superior; "
-                "Z:Left-Right",
+            # FIXME: missing/hardcoded fields
+            neuron_dict = {
+                "idString": Path(output_path).stem + f"-{i}",
+                "DOI": "n/a",
+                "sample": {},
+                "label": {},
+                "annotationSpace": {
+                    "version": 3,
+                    "description": "Annotation Space: CCFv3.0 Axes> X: Anterior-Posterior; Y: Inferior-Superior; "
+                                   "Z:Left-Right",
+                }
             }
 
-            MouseLightJsonWriter._populate_soma(neuron_dict, morphology)
+            MouseLightJsonWriter._populate_soma(neuron_dict, tree)
 
-            structure_types = get_structure_types(morphology)
-            if Morphology.DENDRITE in structure_types:
-                MouseLightJsonWriter._populate_samples(
-                    neuron_dict, morphology, Morphology.DENDRITE
-                )
-            if Morphology.AXON in structure_types:
-                MouseLightJsonWriter._populate_samples(
-                    neuron_dict, morphology, Morphology.AXON
-                )
-            else:
-                MouseLightJsonWriter._populate_samples(neuron_dict, morphology)
+            relevant_types = {Morphology.AXON, Morphology.DENDRITE, Morphology.BASAL_DENDRITE, Morphology.APICAL_DENDRITE}
+            types_in_tree = get_structure_types(tree)
+            relevant_types_in_tree = [t for t in types_in_tree if t in relevant_types]
+            # FIXME: this is brittle. Will not handle cases where a subset of nodes have a defined type
+            for t in relevant_types_in_tree:
+                MouseLightJsonWriter._populate_samples(neuron_dict, tree, t)
+            if not relevant_types_in_tree:
+                MouseLightJsonWriter._populate_samples(neuron_dict, tree)
 
-            # populate allen information
+            # populate CCF information
             ccf_region_set = MouseLightJsonWriter._find_unique_structures(
-                morphology
+                tree
             )
             MouseLightJsonWriter._populate_allen_info(
                 neuron_dict, ccf_region_set
@@ -234,12 +234,10 @@ class MouseLightJsonWriter:
 def main():
     mapper = CCFMorphologyMapper(resolution=25)
     swc = (
-        r"C:\Users\cameron.arshadi\Desktop\exaSPIM_609281_2022-11-03_13-49-18\ccf_coords\Neuron_02_2022-11-03"
-        r".swc_ccf10.swc"
+        r"C:\Users\cameron.arshadi\Downloads\exaSPIM_651324_Neuron_7.swc"
     )
     out_json = (
-        r"C:\Users\cameron.arshadi\Desktop\exaSPIM_609281_2022-11-03_13-49-18\ccf_coords\Neuron_02_2022-11-03"
-        r".swc_ccf10.json"
+        r"C:\Users\cameron.arshadi\Downloads\exaSPIM_651324_Neuron_7.json"
     )
     morph = read_swc(swc)
     mapper.annotate_morphology(morph)
