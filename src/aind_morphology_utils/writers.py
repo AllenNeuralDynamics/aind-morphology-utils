@@ -1,10 +1,10 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, List, Optional
 
 from allensdk.core import swc
-from allensdk.core.swc import Morphology, read_swc
+from allensdk.core.swc import Morphology, read_swc, Compartment
 
 from aind_morphology_utils.ccf_annotation import CCFMorphologyMapper
 from aind_morphology_utils.utils import (
@@ -20,7 +20,14 @@ class MouseLightJsonWriter:
     """Class for writing a MouseLight-style JSON file from a Morphology"""
 
     @staticmethod
-    def write(morphology: Morphology, output_path: str) -> None:
+    def write(
+            morphology: Morphology,
+            output_path: str,
+            id_string: Optional[str] = None,
+            sample: Optional[dict] = None,
+            label: Optional[dict] = None,
+            comment: Optional[str] = None
+    ) -> None:
         """
         Write the Morphology object data to a JSON file.
 
@@ -31,9 +38,40 @@ class MouseLightJsonWriter:
         output_path : str
            The path of the output JSON file.
         """
-        data = MouseLightJsonWriter._build_dict(morphology, output_path)
+        data = MouseLightJsonWriter._build_dict(
+            morphology,
+            output_path,
+            id_string,
+            sample,
+            label,
+            comment
+        )
         with open(output_path, "w") as f:
             json.dump(data, f, indent=4)
+
+    @staticmethod
+    def _get_soma_node(morphology: Morphology):
+        """
+        Get the soma node from a given morphology.
+
+        This function returns the soma node if it exists in the morphology.
+        If the soma is not specified, it defaults to returning the first node (node 0).
+
+        Parameters
+        ----------
+        morphology : Morphology
+            The Morphology object from which to extract the soma node.
+
+        Returns
+        -------
+        Compartment
+            The soma node if it exists, else the first node in the morphology.
+        """
+        if morphology.soma is not None:
+            return morphology.soma
+        else:
+            # FIXME: this might not always make sense
+            return morphology.node(0)
 
     @staticmethod
     def _populate_soma(d: dict, morphology: Morphology) -> None:
@@ -48,16 +86,13 @@ class MouseLightJsonWriter:
             The Morphology object containing soma information.
 
         """
-        # FIXME: assume the root node corresponds to the soma
-        #  in the future we should explicity use the soma .swc type identifier
-        #  for the root node in the swc.
-        soma_node = morphology.node(0)
-        ccf_region_id = get_ccf_id(soma_node)
+        soma_node = MouseLightJsonWriter._get_soma_node(morphology)
+        ccf_id = get_ccf_id(soma_node)
         d["soma"] = {
             "x": soma_node["x"],
             "y": soma_node["y"],
             "z": soma_node["z"],
-            "allenId": ccf_region_id,
+            "allenId": ccf_id,
         }
 
     @staticmethod
@@ -93,20 +128,24 @@ class MouseLightJsonWriter:
             compartments = morphology.compartment_list
         else:
             compartments = morphology.compartment_list_by_type(structure_type)
-        for c in compartments:
+        # Root node is the first sample for each structure type
+        compartments.insert(0, MouseLightJsonWriter._get_soma_node(morphology))
+        for c in MouseLightJsonWriter.remap_ids(compartments):
             ccf_region_id = get_ccf_id(c)
+            if c[swc.NODE_TYPE] == Morphology.SOMA:
+                stype = Morphology.SOMA
+            elif structure_type == -1:
+                stype = Morphology.AXON
+            else:
+                stype = structure_type
             sample = {
-                "sampleNumber": c[swc.NODE_ID] + 1,  # enforce starting at 1
-                "structureIdentifier": Morphology.AXON
-                if structure_type == -1
-                else structure_type,
+                "sampleNumber": c[swc.NODE_ID],  # enforce starting at 1
+                "structureIdentifier": stype,
                 "x": c[swc.NODE_X],
                 "y": c[swc.NODE_Y],
                 "z": c[swc.NODE_Z],
                 "radius": c[swc.NODE_R],
-                "parentNumber": c[swc.NODE_PN] + 1
-                if c[swc.NODE_PN] != -1
-                else -1,
+                "parentNumber": c[swc.NODE_PN],
                 "allenId": ccf_region_id,
             }
             d[structure_name].append(sample)
@@ -127,16 +166,16 @@ class MouseLightJsonWriter:
         d["allenInformation"] = [
             {
                 "allenId": structure["id"],
-                "name": structure["name"],
+                "name": "Whole Brain" if structure["name"] == "root" else structure["name"],
                 "safeName": structure["name"],
-                "acronym": structure["acronym"],
+                "acronym": "wholebrain" if structure["acronym"] == "root" else structure["acronym"],
                 "graphOrder": structure["graph_order"],
-                "structureIdPath": "/".join(
+                "structureIdPath":  '/' + "/".join(
                     str(s) for s in structure["structure_id_path"]
-                ),
-                "colorHex": rgb_to_hex(tuple(structure["rgb_triplet"])),
+                ) + '/',  # add beginning and trailing slash to match MouseLight JSON files
+                "colorHex": rgb_to_hex(tuple(structure["rgb_triplet"])).upper().lstrip('#'),
             }
-            for structure in unique_structures
+            for structure in sorted(unique_structures, key=lambda x: x['id'])
         ]
 
     @staticmethod
@@ -170,7 +209,44 @@ class MouseLightJsonWriter:
         return unique_structures
 
     @staticmethod
-    def _build_dict(morphology: Morphology, output_path: str) -> dict:
+    def remap_ids(node_list: List[Compartment]) -> List[Compartment]:
+        """
+        Remap 'id' and 'parent' fields in a list of Compartment objects for contiguous and ascending ids.
+
+        This function returns a new list of Compartment objects where the 'id' field starts from 1
+        and is contiguous and ascending. The 'parent' field is updated to reflect the new 'id' for
+        the changed nodes.
+
+        Parameters
+        ----------
+        node_list : List[Compartment]
+            A list of Compartment objects.
+
+        Returns
+        -------
+        new_node_list : List[Compartment]
+            A new list of Compartment objects with 'id' and 'parent' fields remapped.
+        """
+        id_mapping = {node['id']: new_id for new_id, node in enumerate(node_list, start=1)}
+
+        new_node_list = [Compartment(
+            **{'id': id_mapping[node['id']],
+               'parent': id_mapping[node['parent']] if node['parent'] in id_mapping else -1,
+               **{k: v for k, v in node.items() if k not in ['id', 'parent']}}
+        )
+            for node in node_list]
+
+        return new_node_list
+
+    @staticmethod
+    def _build_dict(
+            morphology: Morphology,
+            output_path: str,
+            id_str: Optional[str] = None,
+            sample: Optional[dict] = None,
+            label: Optional[dict] = None,
+            comment: Optional[str] = None
+    ) -> dict:
         """
         Build the MLJson dictionary from the given Morphology object.
 
@@ -188,7 +264,7 @@ class MouseLightJsonWriter:
 
         """
         data = {}
-        data["comment"] = ""
+        data["comment"] = comment or ""
         data["neurons"] = []
         for i in range(morphology.num_trees):
             tree = Morphology(morphology.tree(i))
@@ -196,10 +272,10 @@ class MouseLightJsonWriter:
             # Top-level metadata
             # FIXME: missing/hardcoded fields
             neuron_dict = {
-                "idString": Path(output_path).stem + f"-{i}",
+                "idString": id_str or Path(output_path).stem + f"-{i}",
                 "DOI": "n/a",
-                "sample": {},
-                "label": {},
+                "sample": sample,
+                "label": label,
                 "annotationSpace": {
                     "version": 3,
                     "description": "Annotation Space: CCFv3.0 Axes> X: Anterior-Posterior; Y: Inferior-Superior; "
@@ -209,7 +285,8 @@ class MouseLightJsonWriter:
 
             MouseLightJsonWriter._populate_soma(neuron_dict, tree)
 
-            relevant_types = {Morphology.AXON, Morphology.DENDRITE, Morphology.BASAL_DENDRITE, Morphology.APICAL_DENDRITE}
+            relevant_types = {Morphology.AXON, Morphology.DENDRITE, Morphology.BASAL_DENDRITE,
+                              Morphology.APICAL_DENDRITE}
             types_in_tree = get_structure_types(tree)
             relevant_types_in_tree = [t for t in types_in_tree if t in relevant_types]
             # FIXME: this is brittle. Will not handle cases where a subset of nodes have a defined type
