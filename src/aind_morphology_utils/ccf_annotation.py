@@ -69,7 +69,7 @@ class CCFMorphologyMapper:
         inv_dir_mat = np.linalg.inv(self.direction_matrix)
         for c in morphology.compartment_list:
             pos = np.array([c["x"], c["y"], c["z"]])
-            pos_px = np.round(np.dot(pos, inv_dir_mat)).astype(int)
+            pos_px = np.dot(pos, inv_dir_mat).astype(int)
             try:
                 ccf_region_id = self.volume[tuple(pos_px)]
             except IndexError:
