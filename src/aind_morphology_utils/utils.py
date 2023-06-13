@@ -68,7 +68,7 @@ def rgb_to_hex(rgb_tuple: tuple) -> str:
 
 
 def fix_swc_whitespace(input_swc_path: str, output_swc_path: str) -> None:
-    """    
+    """
     Process an SWC file, replacing any sequence of whitespace characters with a single space.
 
     This function reads each line in the input SWC file, splits the line into parts at any
@@ -82,14 +82,16 @@ def fix_swc_whitespace(input_swc_path: str, output_swc_path: str) -> None:
     output_swc_path : str
         The path to the output SWC file.
     """
-    with open(input_swc_path, 'r') as input_file, open(output_swc_path, 'w') as output_file:
+    with open(input_swc_path, "r") as input_file, open(
+        output_swc_path, "w"
+    ) as output_file:
         for line in input_file:
             # split the line into a list based on any type of whitespace
             parts = line.split()
             # join the elements into a string with a single-space separator
-            new_line = ' '.join(parts)
+            new_line = " ".join(parts)
             # write the processed line to the output file, adding a newline character
-            output_file.write(new_line + '\n')
+            output_file.write(new_line + "\n")
 
 
 def read_json(file_path: Union[str, Path]) -> Any:
@@ -107,5 +109,5 @@ def read_json(file_path: Union[str, Path]) -> Any:
         The Python object represented by the JSON file. The exact type (e.g., dict, list)
         depends on the structure of the JSON file.
     """
-    with open(file_path, 'r') as file:
+    with open(file_path, "r") as file:
         return json.load(file)

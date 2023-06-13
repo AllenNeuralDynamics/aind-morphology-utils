@@ -21,12 +21,12 @@ class MouseLightJsonWriter:
 
     @staticmethod
     def write(
-            morphology: Morphology,
-            output_path: str,
-            id_string: Optional[str] = None,
-            sample: Optional[dict] = None,
-            label: Optional[dict] = None,
-            comment: Optional[str] = None
+        morphology: Morphology,
+        output_path: str,
+        id_string: Optional[str] = None,
+        sample: Optional[dict] = None,
+        label: Optional[dict] = None,
+        comment: Optional[str] = None,
     ) -> None:
         """
         Write the Morphology object data to a JSON file.
@@ -39,12 +39,7 @@ class MouseLightJsonWriter:
            The path of the output JSON file.
         """
         data = MouseLightJsonWriter._build_dict(
-            morphology,
-            output_path,
-            id_string,
-            sample,
-            label,
-            comment
+            morphology, output_path, id_string, sample, label, comment
         )
         with open(output_path, "w") as f:
             json.dump(data, f, indent=4)
@@ -97,7 +92,7 @@ class MouseLightJsonWriter:
 
     @staticmethod
     def _populate_samples(
-            d: dict, morphology: Morphology, structure_type: int = -1
+        d: dict, morphology: Morphology, structure_type: int = -1
     ) -> None:
         """
         Populate the dictionary with the Morphology compartments
@@ -114,9 +109,9 @@ class MouseLightJsonWriter:
 
         """
         if structure_type in (
-                Morphology.DENDRITE,
-                Morphology.BASAL_DENDRITE,
-                Morphology.APICAL_DENDRITE,
+            Morphology.DENDRITE,
+            Morphology.BASAL_DENDRITE,
+            Morphology.APICAL_DENDRITE,
         ):
             structure_name = "dendrite"
         else:
@@ -166,16 +161,22 @@ class MouseLightJsonWriter:
         d["allenInformation"] = [
             {
                 "allenId": structure["id"],
-                "name": "Whole Brain" if structure["name"] == "root" else structure["name"],
+                "name": "Whole Brain"
+                if structure["name"] == "root"
+                else structure["name"],
                 "safeName": structure["name"],
-                "acronym": "wholebrain" if structure["acronym"] == "root" else structure["acronym"],
+                "acronym": "wholebrain"
+                if structure["acronym"] == "root"
+                else structure["acronym"],
                 "graphOrder": structure["graph_order"],
-                "structureIdPath":  '/' + "/".join(
-                    str(s) for s in structure["structure_id_path"]
-                ) + '/',  # add beginning and trailing slash to match MouseLight JSON files
-                "colorHex": rgb_to_hex(tuple(structure["rgb_triplet"])).upper().lstrip('#'),
+                "structureIdPath": "/"
+                + "/".join(str(s) for s in structure["structure_id_path"])
+                + "/",  # add beginning and trailing slash to match MouseLight JSON files
+                "colorHex": rgb_to_hex(tuple(structure["rgb_triplet"]))
+                .upper()
+                .lstrip("#"),
             }
-            for structure in sorted(unique_structures, key=lambda x: x['id'])
+            for structure in sorted(unique_structures, key=lambda x: x["id"])
         ]
 
     @staticmethod
@@ -227,25 +228,38 @@ class MouseLightJsonWriter:
         new_node_list : List[Compartment]
             A new list of Compartment objects with 'id' and 'parent' fields remapped.
         """
-        id_mapping = {node['id']: new_id for new_id, node in enumerate(node_list, start=1)}
+        id_mapping = {
+            node["id"]: new_id
+            for new_id, node in enumerate(node_list, start=1)
+        }
 
-        new_node_list = [Compartment(
-            **{'id': id_mapping[node['id']],
-               'parent': id_mapping[node['parent']] if node['parent'] in id_mapping else -1,
-               **{k: v for k, v in node.items() if k not in ['id', 'parent']}}
-        )
-            for node in node_list]
+        new_node_list = [
+            Compartment(
+                **{
+                    "id": id_mapping[node["id"]],
+                    "parent": id_mapping[node["parent"]]
+                    if node["parent"] in id_mapping
+                    else -1,
+                    **{
+                        k: v
+                        for k, v in node.items()
+                        if k not in ["id", "parent"]
+                    },
+                }
+            )
+            for node in node_list
+        ]
 
         return new_node_list
 
     @staticmethod
     def _build_dict(
-            morphology: Morphology,
-            output_path: str,
-            id_str: Optional[str] = None,
-            sample: Optional[dict] = None,
-            label: Optional[dict] = None,
-            comment: Optional[str] = None
+        morphology: Morphology,
+        output_path: str,
+        id_str: Optional[str] = None,
+        sample: Optional[dict] = None,
+        label: Optional[dict] = None,
+        comment: Optional[str] = None,
     ) -> dict:
         """
         Build the MLJson dictionary from the given Morphology object.
@@ -279,16 +293,22 @@ class MouseLightJsonWriter:
                 "annotationSpace": {
                     "version": 3,
                     "description": "Annotation Space: CCFv3.0 Axes> X: Anterior-Posterior; Y: Inferior-Superior; "
-                                   "Z:Left-Right",
-                }
+                    "Z:Left-Right",
+                },
             }
 
             MouseLightJsonWriter._populate_soma(neuron_dict, tree)
 
-            relevant_types = {Morphology.AXON, Morphology.DENDRITE, Morphology.BASAL_DENDRITE,
-                              Morphology.APICAL_DENDRITE}
+            relevant_types = {
+                Morphology.AXON,
+                Morphology.DENDRITE,
+                Morphology.BASAL_DENDRITE,
+                Morphology.APICAL_DENDRITE,
+            }
             types_in_tree = get_structure_types(tree)
-            relevant_types_in_tree = [t for t in types_in_tree if t in relevant_types]
+            relevant_types_in_tree = [
+                t for t in types_in_tree if t in relevant_types
+            ]
             # FIXME: this is brittle. Will not handle cases where a subset of nodes have a defined type
             for t in relevant_types_in_tree:
                 MouseLightJsonWriter._populate_samples(neuron_dict, tree, t)
@@ -296,9 +316,7 @@ class MouseLightJsonWriter:
                 MouseLightJsonWriter._populate_samples(neuron_dict, tree)
 
             # populate CCF information
-            ccf_region_set = MouseLightJsonWriter._find_unique_structures(
-                tree
-            )
+            ccf_region_set = MouseLightJsonWriter._find_unique_structures(tree)
             MouseLightJsonWriter._populate_allen_info(
                 neuron_dict, ccf_region_set
             )
@@ -310,9 +328,7 @@ class MouseLightJsonWriter:
 
 def main():
     mapper = CCFMorphologyMapper(resolution=25)
-    swc = (
-        r"C:\Users\cameron.arshadi\Downloads\exaSPIM_651324_Neuron_7.swc"
-    )
+    swc = r"C:\Users\cameron.arshadi\Downloads\exaSPIM_651324_Neuron_7.swc"
     out_json = (
         r"C:\Users\cameron.arshadi\Downloads\exaSPIM_651324_Neuron_7.json"
     )

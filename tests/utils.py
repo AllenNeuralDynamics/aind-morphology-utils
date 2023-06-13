@@ -13,7 +13,7 @@ def get_test_swc_path() -> Path:
     pathlib.Path
         The path to the test SWC file.
     """
-    return get_test_resources_dir() / 'AA1543-cleaned-whitespace.swc'
+    return get_test_resources_dir() / "AA1543-cleaned-whitespace.swc"
 
 
 def get_test_json_path() -> Path:
@@ -25,7 +25,7 @@ def get_test_json_path() -> Path:
     pathlib.Path
         The path to the test JSON file.
     """
-    return get_test_resources_dir() / 'AA1543.json'
+    return get_test_resources_dir() / "AA1543.json"
 
 
 def get_test_resources_dir() -> Path:
@@ -37,7 +37,7 @@ def get_test_resources_dir() -> Path:
     pathlib.Path
         The path to the test resource directory.
     """
-    return Path(os.path.dirname(os.path.abspath(__file__))) / 'resources'
+    return Path(os.path.dirname(os.path.abspath(__file__))) / "resources"
 
 
 def is_close(a: Any, b: Any, rel_tol: float = 1e-9) -> bool:
@@ -69,7 +69,7 @@ def is_close(a: Any, b: Any, rel_tol: float = 1e-9) -> bool:
     if isinstance(a, str) and isinstance(b, str):
         # Json files downloaded from the MouseLight Neuron Browser
         # sometimes have commas removed from the structure names.
-        return a.replace(',', '') == b.replace(',', '')
+        return a.replace(",", "") == b.replace(",", "")
     return a == b
 
 
