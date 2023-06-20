@@ -33,7 +33,6 @@ class TestMappingAndJsonCreation(unittest.TestCase):
         )
         d = MouseLightJsonWriter._build_dict(
             morph,
-            os.path.join(get_test_resources_dir(), "AA1543-test.json"),
             id_str=id_string,
             sample=sample,
             label=label,

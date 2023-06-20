@@ -1,6 +1,5 @@
 import json
 import logging
-from pathlib import Path
 from typing import Any, List, Optional
 
 from allensdk.core import swc
@@ -19,30 +18,40 @@ _LOGGER = logging.getLogger(__name__)
 class MouseLightJsonWriter:
     """Class for writing a MouseLight-style JSON file from a Morphology"""
 
-    @staticmethod
+    def __init__(
+            self,
+            morphology: Morphology,
+            id_string: Optional[str] = None,
+            sample: Optional[dict] = None,
+            label: Optional[dict] = None,
+            comment: Optional[str] = None,
+    ):
+        self._morphology = morphology
+        self._data = MouseLightJsonWriter._build_dict(
+            morphology,
+            id_string,
+            sample,
+            label,
+            comment
+        )
+
     def write(
-        morphology: Morphology,
+        self,
         output_path: str,
-        id_string: Optional[str] = None,
-        sample: Optional[dict] = None,
-        label: Optional[dict] = None,
-        comment: Optional[str] = None,
+        indent: int = 4
     ) -> None:
         """
         Write the Morphology object data to a JSON file.
 
         Parameters
         ----------
-        morphology : Morphology
-           The Morphology object to write.
         output_path : str
            The path of the output JSON file.
+        indent: int
+            The number of spaces for JSON indentation.
         """
-        data = MouseLightJsonWriter._build_dict(
-            morphology, output_path, id_string, sample, label, comment
-        )
         with open(output_path, "w") as f:
-            json.dump(data, f, indent=4)
+            json.dump(self._data, f, indent=indent)
 
     @staticmethod
     def _get_soma_node(morphology: Morphology):
@@ -255,7 +264,6 @@ class MouseLightJsonWriter:
     @staticmethod
     def _build_dict(
         morphology: Morphology,
-        output_path: str,
         id_str: Optional[str] = None,
         sample: Optional[dict] = None,
         label: Optional[dict] = None,
@@ -283,10 +291,15 @@ class MouseLightJsonWriter:
         for i in range(morphology.num_trees):
             tree = Morphology(morphology.tree(i))
 
+            if id_str:
+                tree_id_str = id_str if i == 0 else id_str + f"-{i}"
+            else:
+                tree_id_str = f"Tree-{i}"
+
             # Top-level metadata
             # FIXME: missing/hardcoded fields
             neuron_dict = {
-                "idString": id_str or Path(output_path).stem + f"-{i}",
+                "idString": tree_id_str,
                 "DOI": "n/a",
                 "sample": sample,
                 "label": label,
