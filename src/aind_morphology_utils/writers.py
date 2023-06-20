@@ -25,6 +25,7 @@ class MouseLightJsonWriter:
             sample: Optional[dict] = None,
             label: Optional[dict] = None,
             comment: Optional[str] = None,
+            doi: Optional[str] = None
     ):
         self._morphology = morphology
         self._data = MouseLightJsonWriter._build_dict(
@@ -32,7 +33,8 @@ class MouseLightJsonWriter:
             id_string,
             sample,
             label,
-            comment
+            comment,
+            doi
         )
 
     def write(
@@ -268,6 +270,7 @@ class MouseLightJsonWriter:
         sample: Optional[dict] = None,
         label: Optional[dict] = None,
         comment: Optional[str] = None,
+        doi: Optional[str] = None
     ) -> dict:
         """
         Build the MLJson dictionary from the given Morphology object.
@@ -300,7 +303,7 @@ class MouseLightJsonWriter:
             # FIXME: missing/hardcoded fields
             neuron_dict = {
                 "idString": tree_id_str,
-                "DOI": "n/a",
+                "DOI": doi,
                 "sample": sample,
                 "label": label,
                 "annotationSpace": {
