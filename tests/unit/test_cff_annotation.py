@@ -201,3 +201,7 @@ class TestCCFMorphologyMapper(unittest.TestCase):
         expected_morph = _create_expected_morphology()
         for i in range(expected_morph.num_nodes):
             self.assertEqual(expected_morph.node(i), morph.node(i))
+
+
+if __name__ == "__main__":
+    unittest.main()

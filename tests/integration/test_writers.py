@@ -40,3 +40,7 @@ class TestMappingAndJsonCreation(unittest.TestCase):
         )
         expected_d = read_json(get_test_json_path())
         self.assertTrue(dict_equal(d, expected_d, rel_tol=1e-4))
+
+
+if __name__ == "__main__":
+    unittest.main()
