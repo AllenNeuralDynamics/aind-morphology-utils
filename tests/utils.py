@@ -13,7 +13,7 @@ def get_test_swc_path() -> Path:
     pathlib.Path
         The path to the test SWC file.
     """
-    return get_test_resources_dir() / "AA1543-cleaned-whitespace.swc"
+    return get_test_resources_dir() / "AA0983-cleaned-whitespace.swc"
 
 
 def get_test_json_path() -> Path:
@@ -25,7 +25,7 @@ def get_test_json_path() -> Path:
     pathlib.Path
         The path to the test JSON file.
     """
-    return get_test_resources_dir() / "AA1543.json"
+    return get_test_resources_dir() / "AA0983.json"
 
 
 def get_test_resources_dir() -> Path:

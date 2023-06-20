@@ -14,10 +14,11 @@ class TestMouseLightJsonWriter(unittest.TestCase):
         self.morphology = read_swc(str(get_test_swc_path()))
         self.writer = MouseLightJsonWriter(
             self.morphology,
-            id_string="AA1543",
+            id_string="AA0983",
             sample={"sample": "sample"},
             label={"label": "label"},
             comment="comment",
+            doi="10.25378/janelia.7804508"
         )
         self.output_path = tempfile.mktemp()
 
@@ -41,10 +42,11 @@ class TestMouseLightJsonWriter(unittest.TestCase):
         # Perform assertions about the structure of the data
         self.assertEqual("comment", data["comment"])
         self.assertEqual(1, len(data["neurons"]))
-        self.assertEqual("AA1543", data["neurons"][0]["idString"])
+        self.assertEqual("AA0983", data["neurons"][0]["idString"])
         self.assertEqual({"sample": "sample"}, data["neurons"][0]["sample"])
         self.assertEqual({"label": "label"}, data["neurons"][0]["label"])
-        self.assertEquals(
+        self.assertEqual("10.25378/janelia.7804508", data['neurons'][0]['DOI'])
+        self.assertEqual(
             {
                 "version": 3,
                 "description": "Annotation Space: CCFv3.0 Axes> X: Anterior-Posterior; Y: Inferior-Superior; "
@@ -52,17 +54,17 @@ class TestMouseLightJsonWriter(unittest.TestCase):
             },
             data["neurons"][0]["annotationSpace"],
         )
-        self.assertEqual(8755, len(data["neurons"][0]["axon"]))
+        self.assertEqual(325, len(data["neurons"][0]["axon"]))
         self._check_samples(data["neurons"][0]["axon"])
 
-        self.assertEqual(2321, len(data["neurons"][0]["dendrite"]))
+        self.assertEqual(395, len(data["neurons"][0]["dendrite"]))
         self._check_samples(data["neurons"][0]["dendrite"])
 
         self.assertEqual(4, len(data["neurons"][0]["soma"]))
         self._check_soma(data["neurons"][0]["soma"])
 
         # This will be empty unless we map annotations first
-        self.assertEquals(0, len(data["neurons"][0]["allenInformation"]))
+        self.assertEqual(0, len(data["neurons"][0]["allenInformation"]))
 
     def test_write_indent(self):
         self.writer.write(self.output_path, indent=2)
