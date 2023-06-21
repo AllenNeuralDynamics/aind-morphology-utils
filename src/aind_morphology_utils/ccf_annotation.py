@@ -81,11 +81,3 @@ class CCFMorphologyMapper:
             structure = tree.get_structures_by_id([ccf_region_id])[0]
             if structure is not None:
                 c["allenInformation"] = structure
-
-
-if __name__ == "__main__":
-    mapper = CCFMorphologyMapper(resolution=25)
-    print(mapper.volume.nbytes / 2**20)
-    swc = r"C:\Users\cameron.arshadi\Desktop\exaSPIM_609281_2022-11-03_13-49-18\ccf_coords\Neuron_02_2022-11-03.swc_ccf10.swc"
-    morph = read_swc(swc)
-    mapper.annotate_morphology(morph)

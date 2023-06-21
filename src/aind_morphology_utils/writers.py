@@ -340,18 +340,3 @@ class MouseLightJsonWriter:
             data["neurons"].append(neuron_dict)
 
         return data
-
-
-def main():
-    mapper = CCFMorphologyMapper(resolution=25)
-    swc = r"C:\Users\cameron.arshadi\Downloads\exaSPIM_651324_Neuron_7.swc"
-    out_json = (
-        r"C:\Users\cameron.arshadi\Downloads\exaSPIM_651324_Neuron_7.json"
-    )
-    morph = read_swc(swc)
-    mapper.annotate_morphology(morph)
-    MouseLightJsonWriter.write(morph, out_json)
-
-
-if __name__ == "__main__":
-    main()
