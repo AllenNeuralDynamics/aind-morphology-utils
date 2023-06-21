@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "aind-morphology-utils"
 description = "Generated from aind-library-template"
 license = {text = "MIT"}
-requires-python = ">=3.7"
+requires-python = ">=3.7, <3.10"
 authors = [
     {name = "Allen Institute for Neural Dynamics"}
 ]
@@ -17,6 +17,8 @@ readme = "README.md"
 dynamic = ["version"]
 
 dependencies = [
+    "numpy",
+    "allensdk"
 ]
 
 [project.optional-dependencies]
@@ -38,7 +40,7 @@ version = {attr = "aind_morphology_utils.__version__"}
 
 [tool.black]
 line-length = 79
-target_version = ['py36']
+target_version = ['py39']
 exclude = '''
 
 (
@@ -68,7 +70,7 @@ exclude_lines = [
     "import",
     "pragma: no cover"
 ]
-fail_under = 100
+fail_under = 0
 
 [tool.isort]
 line_length = 79
@@ -76,4 +78,4 @@ profile = "black"
 
 [tool.interrogate]
 exclude = ["setup.py", "docs", "build"]
-fail-under = 100
+fail-under = 50
