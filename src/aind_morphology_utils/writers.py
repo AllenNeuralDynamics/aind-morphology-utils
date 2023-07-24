@@ -1,11 +1,11 @@
 import json
 import logging
-from typing import Any, List, Optional
+from os import PathLike
+from typing import Any, List, Optional, Union
 
 from allensdk.core import swc
-from allensdk.core.swc import Morphology, read_swc, Compartment
+from allensdk.core.swc import Morphology, Compartment
 
-from aind_morphology_utils.ccf_annotation import CCFMorphologyMapper
 from aind_morphology_utils.utils import (
     get_ccf_id,
     get_structure_types,
@@ -39,7 +39,7 @@ class MouseLightJsonWriter:
 
     def write(
         self,
-        output_path: str,
+        output_path: Union[str, PathLike],
         indent: int = 4
     ) -> None:
         """
@@ -134,8 +134,9 @@ class MouseLightJsonWriter:
             compartments = morphology.compartment_list
         else:
             compartments = morphology.compartment_list_by_type(structure_type)
-        # Root node is the first sample for each structure type
-        compartments.insert(0, MouseLightJsonWriter._get_soma_node(morphology))
+            # Root node is the first sample for each structure type
+            compartments.insert(0, MouseLightJsonWriter._get_soma_node(morphology))
+
         for c in MouseLightJsonWriter.remap_ids(compartments):
             ccf_region_id = get_ccf_id(c)
             if c[swc.NODE_TYPE] == Morphology.SOMA:
