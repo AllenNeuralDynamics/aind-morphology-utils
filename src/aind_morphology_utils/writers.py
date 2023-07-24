@@ -1,6 +1,6 @@
 import json
 import logging
-from pathlib import Path
+from os import PathLike
 from typing import Any, List, Optional, Union
 
 from allensdk.core import swc
@@ -39,7 +39,7 @@ class MouseLightJsonWriter:
 
     def write(
         self,
-        output_path: Union[str, Path],
+        output_path: Union[str, PathLike],
         indent: int = 4
     ) -> None:
         """
