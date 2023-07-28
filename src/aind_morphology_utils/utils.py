@@ -1,7 +1,6 @@
 import json
 import os
 from glob import glob
-from pathlib import Path
 from typing import Union, Any, Tuple, Set, List
 
 import numpy
@@ -70,7 +69,10 @@ def rgb_to_hex(rgb_tuple: Tuple[int, int, int]) -> str:
     return "#%02x%02x%02x" % rgb_tuple
 
 
-def fix_swc_whitespace(input_swc_path: str, output_swc_path: str) -> None:
+def fix_swc_whitespace(
+        input_swc_path: Union[str, os.PathLike],
+        output_swc_path: Union[str, os.PathLike]
+) -> None:
     """
     Process an SWC file, replacing any sequence of whitespace characters with a single space.
 
@@ -90,7 +92,7 @@ def fix_swc_whitespace(input_swc_path: str, output_swc_path: str) -> None:
             output_file.write(new_line + "\n")
 
 
-def read_json(file_path: Union[str, Path]) -> Any:
+def read_json(file_path: Union[str, os.PathLike]) -> Any:
     """
     Read a JSON file and return its content as a Python object.
 
@@ -108,7 +110,7 @@ def read_json(file_path: Union[str, Path]) -> Any:
         return json.load(file)
 
 
-def read_swc_offset(swc_path: Union[str, Path]) -> Union[None, numpy.ndarray]:
+def read_swc_offset(swc_path: Union[str, os.PathLike]) -> Union[None, numpy.ndarray]:
     """
     Read the offset from an SWC file.
 
@@ -129,7 +131,7 @@ def read_swc_offset(swc_path: Union[str, Path]) -> Union[None, numpy.ndarray]:
     return None
 
 
-def read_swc(swc_path: Union[str, Path], add_offset: bool = True) -> Morphology:
+def read_swc(swc_path: Union[str, os.PathLike], add_offset: bool = True) -> Morphology:
     """
     Read an SWC file and return its content as a Morphology object.
     Optionally add the offset from the file header to the node coordinates,
@@ -161,7 +163,7 @@ def read_swc(swc_path: Union[str, Path], add_offset: bool = True) -> Morphology:
     return morph
 
 
-def read_registration_transform(reg_path: Union[str, Path]) -> Tuple[Any, Any]:
+def read_registration_transform(reg_path: Union[str, os.PathLike]) -> Tuple[Any, Any]:
     """
     Imports ants transformation from registration output
 
@@ -185,7 +187,7 @@ def read_registration_transform(reg_path: Union[str, Path]) -> Tuple[Any, Any]:
     return affinetx, warptx
 
 
-def get_voxel_size_image(image_path: Union[str, Path], input_scale: int) -> Tuple[float, float, float]:
+def get_voxel_size_image(image_path: Union[str, os.PathLike], input_scale: int) -> Tuple[float, float, float]:
     """
     Get the size of the scaled image at the specified path and scale.
 
@@ -208,7 +210,7 @@ def get_voxel_size_image(image_path: Union[str, Path], input_scale: int) -> Tupl
     return sx, sy, sz
 
 
-def flip_pt(pt: List[float], s: List[float], flip_axes: List[bool]) -> List[float]:
+def flip_pt(pt: List[float], s: List[float], flip_axes: List[int]) -> List[float]:
     """
     Flip the specified axes of a point.
 
@@ -219,7 +221,7 @@ def flip_pt(pt: List[float], s: List[float], flip_axes: List[bool]) -> List[floa
     s : List[float]
         The sizes of the dimensions.
     flip_axes : List[bool]
-        A list of booleans indicating which axes to flip.
+        A list of integers indicating which axes to flip.
 
     Returns
     -------
