@@ -129,6 +129,38 @@ def read_swc_offset(swc_path: Union[str, Path]) -> Union[None, numpy.ndarray]:
     return None
 
 
+def read_swc(swc_path: Union[str, Path], add_offset: bool = True) -> Morphology:
+    """
+    Read an SWC file and return its content as a Morphology object.
+    Optionally add the offset from the file header to the node coordinates,
+    if it exists.
+
+    Parameters
+    ----------
+    swc_path : str or pathlib.Path
+        The path to the SWC file to be read.
+    add_offset : bool, optional
+        If True, the offset from the SWC file header will be added to the
+        node coordinates. Default is True.
+
+    Returns
+    -------
+    Morphology
+        The Morphology object represented by the SWC file.
+    """
+    morph = swc.read_swc(swc_path)
+
+    if add_offset:
+        offset = read_swc_offset(swc_path)
+        if offset is not None:
+            for node in morph.compartment_list:
+                node['x'] += offset[0]
+                node['y'] += offset[1]
+                node['z'] += offset[2]
+
+    return morph
+
+
 def read_registration_transform(reg_path: Union[str, Path]) -> Tuple[Any, Any]:
     """
     Imports ants transformation from registration output

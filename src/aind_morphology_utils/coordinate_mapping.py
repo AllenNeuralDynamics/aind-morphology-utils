@@ -2,20 +2,20 @@ import logging
 from typing import List
 
 import numpy as np
-from allensdk.core.swc import read_swc, Morphology
+from allensdk.core.swc import Morphology
 
 from aind_morphology_utils.utils import (
     read_registration_transform,
     get_voxel_size_image,
-    flip_pt, read_swc_offset
+    flip_pt
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class SWCCoordinateMapper:
+class MorphologyTransformer:
     """
-    Class for Transforming SWC from imaging space to CCF space.
+    Class for Transforming Morphologies from imaging space to CCF space.
 
     Parameters
     ----------
@@ -31,7 +31,7 @@ class SWCCoordinateMapper:
         The scale factors for the SWC file.
     flip_axes : List[bool]
         The axes to flip.
-    input_scale : List[float]
+    input_scale : int
         The scale factors for the input.
     """
 
@@ -43,7 +43,7 @@ class SWCCoordinateMapper:
             input_res: List[float],
             swc_scale: List[float],
             flip_axes: List[bool],
-            input_scale: List[float]
+            input_scale: int
     ):
         self.affinetx, self.warptx = read_registration_transform(registration_folder)
         self.sx, self.sy, self.sz = get_voxel_size_image(image_path, input_scale)
@@ -53,34 +53,25 @@ class SWCCoordinateMapper:
         self.flip_axes = flip_axes
         self.input_scale = input_scale
 
-    def transform_swc(self, swc_file: str) -> Morphology:
+    def transform(self, morph: Morphology) -> Morphology:
         """
-        Transform the given SWC file from imaging space to CCF space.
+        Transform the given Morphology from imaging space to CCF space.
 
         Parameters
         ----------
-        swc_file : str
-            Path to the SWC file.
+        morph: Morphology
+            the morphology object.
 
         Returns
         -------
         allensdk.core.swc.Morphology
             The transformed Morphology object.
         """
-        morph = read_swc(swc_file)
-        offset = read_swc_offset(swc_file)
-        if offset is not None:
-            _LOGGER.info("offset: " + str(offset))
-            for node in morph.compartment_list:
-                node['x'] += offset[0]
-                node['y'] += offset[1]
-                node['z'] += offset[2]
 
         _LOGGER.info("# points: " + str(len(morph.compartment_list)))
 
         scale = [raw / trans for trans, raw in zip(self.transform_res, self.input_res)]
 
-        _LOGGER.info(f'Applying transform to {swc_file}...')
         for node in morph.compartment_list:
             pt = np.array([node['x'], node['y'], node['z']]) / np.array(self.swc_scale)
             pt = flip_pt(pt, [self.sx, self.sy, self.sz], self.flip_axes)
