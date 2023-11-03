@@ -1,19 +1,21 @@
 import logging
+import os
 from typing import List
 
+import h5py
 import numpy as np
 from allensdk.core.swc import Morphology
 
 from aind_morphology_utils.utils import (
     read_registration_transform,
     get_voxel_size_image,
-    flip_pt
+    flip_pt, read_swc
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class MorphologyTransformer:
+class AntsTransform:
     """
     Class for Transforming Morphologies from imaging space to CCF space.
 
@@ -84,3 +86,82 @@ class MorphologyTransformer:
             node['z'] = scaled_warp_pt[2]
 
         return morph
+
+
+class HDF5Transform:
+    """
+    A class to handle transformations using a displacement vector field.
+
+    Attributes
+    ----------
+    transform_matrix : ndarray
+        The transformation matrix to apply.
+    vector_field : ndarray
+        The vector field providing displacement vectors.
+    """
+
+    def __init__(self, transform_file: str):
+        """
+        Initialize the Transformer object by loading the transformation matrix and vector field.
+
+        Parameters
+        ----------
+        transform_file : str
+            Path to the HDF5 transformation file.
+        """
+        with h5py.File(transform_file, 'r') as f:
+            self.transform_matrix = f['/DisplacementField'].attrs['Transformation_Matrix']
+            self.vector_field = f['/DisplacementField'][...]
+
+    def transform(self, morph: Morphology) -> Morphology:
+        """
+        Apply the transformation to a set of points.
+
+        Parameters
+        ----------
+        morph : Morphology
+            The morphology to transform.
+
+        Returns
+        -------
+        Morphology
+            Transformed points.
+        """
+        points = np.array([[c['x'], c['y'], c['z']] for c in morph.compartment_list])
+        points = np.hstack((points, np.ones((points.shape[0], 1))))
+        pix_pos = np.ceil(np.dot(self.transform_matrix, points.T)).astype(int).T
+        vec = np.zeros((points.shape[0], 3))
+        for i, pos in enumerate(pix_pos):
+            try:
+                vec[i] = self.vector_field[:, pos[0], pos[1], pos[2]]
+            except IndexError:
+                print(f"Index out of bounds at point {i}: {pos}")
+        for i, node in enumerate(morph.compartment_list):
+            node['x'] += vec[i][0]
+            node['y'] += vec[i][1]
+            node['z'] += vec[i][2]
+        return morph
+
+    def transform_swc_files(self, input_folder: str, output_folder: str):
+        """
+        Transform all SWC files in the input folder and save the transformed files in the output folder.
+
+        Parameters
+        ----------
+        input_folder : str
+            Path to the folder containing SWC files.
+        output_folder : str
+            Path to the output folder where transformed SWC files will be saved.
+        """
+        swc_files = [f for f in os.listdir(input_folder) if f.endswith('.swc')]
+
+        if not swc_files:
+            raise ValueError(f'No SWC files found in folder: {input_folder}')
+
+        os.makedirs(output_folder, exist_ok=True)
+        for swc_file in swc_files:
+            swc_path = os.path.join(input_folder, swc_file)
+            morph = read_swc(swc_path)
+            morph = self.transform(morph)
+            output_path = os.path.join(output_folder, swc_file)
+            morph.save(output_path)

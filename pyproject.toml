@@ -22,7 +22,9 @@ dependencies = [
     "zarr",
     "antspyx==0.3.7",
     "scipy==1.7.3",
-    "s3fs"
+    "s3fs",
+    "h5py",
+    "pynrrd"
 ]
 
 [project.optional-dependencies]
