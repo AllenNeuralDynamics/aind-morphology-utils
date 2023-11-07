@@ -38,7 +38,8 @@ def calculate_displacements(
 
 
 def get_color_map(
-    displacements: Dict[str, List[Tuple[Compartment, Compartment, float]]]
+    displacements: Dict[str, List[Tuple[Compartment, Compartment, float]]],
+    colormap: str = "coolwarm",
 ) -> Tuple[plt.cm.ScalarMappable, float, float]:
     """
     Generate a colormap based on the displacements.
@@ -47,6 +48,8 @@ def get_color_map(
     ----------
     displacements : dict
         A dictionary containing displacements for each SWC file.
+    colormap : str
+        The name of the colormap to use. Default is "coolwarm".
 
     Returns
     -------
@@ -67,7 +70,7 @@ def get_color_map(
         logging.warning(
             "Minimum and maximum displacements are equal, so colormap will be all one color."
         )
-    cmap = plt.get_cmap("coolwarm")
+    cmap = plt.get_cmap(colormap)
     return cmap, min_disp, max_disp
 
 
