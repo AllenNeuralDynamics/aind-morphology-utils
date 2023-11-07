@@ -20,8 +20,8 @@ dependencies = [
     "numpy",
     "allensdk",
     "zarr",
-    "antspyx==0.3.7",
-    "scipy==1.7.3",
+    "antspyx==0.3.8",
+    "scipy",
     "s3fs",
     "h5py",
     "pynrrd"
