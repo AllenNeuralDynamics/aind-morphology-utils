@@ -1,26 +1,50 @@
 from aind_morphology_utils.coordinate_mapping import HDF5Transform
 
 
-def main():
-    args = parse_args()
+def transform_swc_files(
+    transform_file: str, swcs_folder: str, output_folder: str
+) -> None:
+    """
+    Apply the transformation defined in the HDF5 file to all SWC files
+    in the specified folder and save the transformed SWC files in the output folder.
 
-    transformer = HDF5Transform(args.transform_file)
-    transformer.transform_swc_files(args.swcs, args.output_folder)
+    Parameters
+    ----------
+    transform_file : str
+        The path to the HDF5 file containing the transform.
+    swcs_folder : str
+        The directory containing the SWC files to be transformed.
+    output_folder : str
+        The directory where the transformed SWC files should be saved.
+
+    Returns
+    -------
+    None
+    """
+    transformer = HDF5Transform(transform_file)
+    transformer.transform_swc_files(swcs_folder, output_folder)
 
 
-def parse_args():
+if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description='Apply ants transform to SWC files.')
-    parser.add_argument('--transform_file', type=str, required=True,
-                        help='Path to the HDF5 file containing the transform.')
-    parser.add_argument('--swcs', type=str, required=True,
-                        help='Path to the folder containing the SWC files.')
-    parser.add_argument('--output_folder', type=str, required=True,
-                        help='Path to the folder where the transformed SWC files will be saved.')
+    parser = argparse.ArgumentParser(
+        description="Transform SWC files using a given HDF5 transformation file."
+    )
+    parser.add_argument(
+        "--transform_file",
+        help="Path to the HDF5 file containing the transformation.",
+    )
+    parser.add_argument(
+        "--swcs_folder",
+        help="Path to the folder containing the SWC files to transform.",
+    )
+    parser.add_argument(
+        "--output_folder",
+        help="Path to the folder where the transformed SWC files will be saved.",
+    )
+    args = parser.parse_args()
 
-    return parser.parse_args()
-
-
-if __name__ == '__main__':
-    main()
+    transform_swc_files(
+        args.transform_file, args.swcs_folder, args.output_folder
+    )

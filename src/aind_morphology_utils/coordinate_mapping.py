@@ -1,5 +1,6 @@
 import logging
 import os
+from copy import deepcopy
 from typing import List
 
 import h5py
@@ -9,7 +10,8 @@ from allensdk.core.swc import Morphology
 from aind_morphology_utils.utils import (
     read_registration_transform,
     get_voxel_size_image,
-    flip_pt, read_swc
+    flip_pt,
+    read_swc,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,17 +40,21 @@ class AntsTransform:
     """
 
     def __init__(
-            self,
-            registration_folder: str,
-            image_path: str,
-            transform_res: List[float],
-            input_res: List[float],
-            swc_scale: List[float],
-            flip_axes: List[bool],
-            input_scale: int
+        self,
+        registration_folder: str,
+        image_path: str,
+        transform_res: List[float],
+        input_res: List[float],
+        swc_scale: List[float],
+        flip_axes: List[bool],
+        input_scale: int,
     ):
-        self.affinetx, self.warptx = read_registration_transform(registration_folder)
-        self.sx, self.sy, self.sz = get_voxel_size_image(image_path, input_scale)
+        self.affinetx, self.warptx = read_registration_transform(
+            registration_folder
+        )
+        self.sx, self.sy, self.sz = get_voxel_size_image(
+            image_path, input_scale
+        )
         self.transform_res = transform_res
         self.input_res = input_res
         self.swc_scale = swc_scale
@@ -72,20 +78,30 @@ class AntsTransform:
 
         _LOGGER.info("# points: " + str(len(morph.compartment_list)))
 
-        scale = [raw / trans for trans, raw in zip(self.transform_res, self.input_res)]
+        scale = [
+            raw / trans
+            for trans, raw in zip(self.transform_res, self.input_res)
+        ]
 
-        for node in morph.compartment_list:
-            pt = np.array([node['x'], node['y'], node['z']]) / np.array(self.swc_scale)
+        morph_copy = deepcopy(
+            morph
+        )  # TODO: build new Morphology from scratch instead of deep copying
+        for node in morph_copy.compartment_list:
+            pt = np.array([node["x"], node["y"], node["z"]]) / np.array(
+                self.swc_scale
+            )
             pt = flip_pt(pt, [self.sx, self.sy, self.sz], self.flip_axes)
             scaled_pt = [dim * scale for dim, scale in zip(pt, scale)]
             affine_pt = self.affinetx.apply_to_point(scaled_pt)
             warp_pt = self.warptx.apply_to_point(affine_pt)
-            scaled_warp_pt = [dim * scale for dim, scale in zip(warp_pt, self.transform_res)]
-            node['x'] = scaled_warp_pt[0]
-            node['y'] = scaled_warp_pt[1]
-            node['z'] = scaled_warp_pt[2]
+            scaled_warp_pt = [
+                dim * scale for dim, scale in zip(warp_pt, self.transform_res)
+            ]
+            node["x"] = scaled_warp_pt[0]
+            node["y"] = scaled_warp_pt[1]
+            node["z"] = scaled_warp_pt[2]
 
-        return morph
+        return morph_copy
 
 
 class HDF5Transform:
@@ -109,11 +125,13 @@ class HDF5Transform:
         transform_file : str
             Path to the HDF5 transformation file.
         """
-        with h5py.File(transform_file, 'r') as f:
-            self.transform_matrix = f['/DisplacementField'].attrs['Transformation_Matrix']
-            self.vector_field = f['/DisplacementField'][...]
+        with h5py.File(transform_file, "r") as f:
+            self.transform_matrix = f["/DisplacementField"].attrs[
+                "Transformation_Matrix"
+            ]
+            self.vector_field = f["/DisplacementField"][...]
 
-    def transform(self, morph: Morphology) -> Morphology:
+    def transform(self, morph) -> Morphology:
         """
         Apply the transformation to a set of points.
 
@@ -125,24 +143,73 @@ class HDF5Transform:
         Returns
         -------
         Morphology
-            Transformed points.
+            The transformed morphology.
         """
-        points = np.array([[c['x'], c['y'], c['z']] for c in morph.compartment_list])
-        points = np.hstack((points, np.ones((points.shape[0], 1))))
-        pix_pos = np.ceil(np.dot(self.transform_matrix, points.T)).astype(int).T
-        vec = np.zeros((points.shape[0], 3))
-        for i, pos in enumerate(pix_pos):
-            try:
-                vec[i] = self.vector_field[:, pos[0], pos[1], pos[2]]
-            except IndexError:
-                print(f"Index out of bounds at point {i}: {pos}")
-        for i, node in enumerate(morph.compartment_list):
-            node['x'] += vec[i][0]
-            node['y'] += vec[i][1]
-            node['z'] += vec[i][2]
-        return morph
+        vec = self._get_disp_vec(morph)
 
-    def transform_swc_files(self, input_folder: str, output_folder: str):
+        morph_copy = deepcopy(
+            morph
+        )  # TODO: build new Morphology from scratch instead of deep copying
+        # Apply displacement vectors to points
+        for i, node in enumerate(morph_copy.compartment_list):
+            node["x"], node["y"], node["z"] = np.add(
+                [node["x"], node["y"], node["z"]], vec[i]
+            )
+
+        return morph_copy
+
+    def _get_disp_vec(self, morph: Morphology) -> np.ndarray:
+        """
+        Get the displacement vectors for the given morphology.
+        Parameters
+        ----------
+        morph : Morphology
+            The morphology to transform.
+
+        Returns
+        -------
+        np.ndarray
+            The displacement vectors.
+        """
+        # Extract coordinates and convert them to homogeneous coordinates
+        points = np.array(
+            [[c["x"], c["y"], c["z"], 1] for c in morph.compartment_list]
+        )
+
+        # Convert micron points to voxel coordinates
+        pix_pos = (
+            np.ceil(np.dot(self.transform_matrix, points.T)).astype(int).T
+        )
+
+        vector_field_shape = np.array(self.vector_field.shape[1:])
+
+        # Clip the first three columns of pix_pos (the spatial dimensions)
+        pix_pos[:, :3] = np.clip(pix_pos[:, :3], 0, vector_field_shape - 1)
+
+        # Extract displacement vectors
+        vec = self.vector_field[0, pix_pos[:, 0], pix_pos[:, 1], pix_pos[:, 2]]
+        vec = np.vstack(
+            (
+                vec,
+                self.vector_field[
+                    1, pix_pos[:, 0], pix_pos[:, 1], pix_pos[:, 2]
+                ],
+            )
+        )
+        vec = np.vstack(
+            (
+                vec,
+                self.vector_field[
+                    2, pix_pos[:, 0], pix_pos[:, 1], pix_pos[:, 2]
+                ],
+            )
+        )
+
+        return vec.T
+
+    def transform_swc_files(
+        self, input_folder: str, output_folder: str
+    ) -> None:
         """
         Transform all SWC files in the input folder and save the transformed files in the output folder.
 
@@ -153,10 +220,10 @@ class HDF5Transform:
         output_folder : str
             Path to the output folder where transformed SWC files will be saved.
         """
-        swc_files = [f for f in os.listdir(input_folder) if f.endswith('.swc')]
+        swc_files = [f for f in os.listdir(input_folder) if f.endswith(".swc")]
 
         if not swc_files:
-            raise ValueError(f'No SWC files found in folder: {input_folder}')
+            raise ValueError(f"No SWC files found in folder: {input_folder}")
 
         os.makedirs(output_folder, exist_ok=True)
         for swc_file in swc_files:

@@ -1,4 +1,6 @@
-import os
+import logging
+from pathlib import Path
+
 import numpy as np
 import h5py
 import nrrd
@@ -16,7 +18,7 @@ class NRRDToHDF5:
         The transformation matrix associated with the displacement field.
     """
 
-    def __init__(self, nrrd_file):
+    def __init__(self, nrrd_file: str):
         """
         Parameters
         ----------
@@ -24,11 +26,9 @@ class NRRDToHDF5:
             Path to the NRRD file containing the displacement field.
         """
         self.disp, header = nrrd.read(nrrd_file)
-        # Change orientation from LPS to RAS
-        self.disp[0:2, :, :, :] = -self.disp[0:2, :, :, :]
         self._process_header(header)
 
-    def _process_header(self, header):
+    def _process_header(self, header: dict, voxel_size: int = 25) -> None:
         """
         Process the header information from the NRRD file to extract the transformation matrix.
 
@@ -37,12 +37,34 @@ class NRRDToHDF5:
         header : dict
             Header information from the NRRD file.
         """
-        space_directions = header['space directions']
-        # First row is nan for some reason??
-        space_directions = space_directions[~np.all(np.isnan(space_directions), axis=1)] * 25
-        assert space_directions.shape == (3, 3)
+        if header["space"] in ["left-posterior-superior", "LPS"]:
+            # Change orientation from LPS to RAS
+            self.disp[0:2, :, :, :] = -self.disp[0:2, :, :, :]
 
-        origin = header['space origin']
+        space_directions = header["space directions"]
+        # First row is nan for some reason??
+        space_directions = space_directions[
+            ~np.all(np.isnan(space_directions), axis=1)
+        ]
+        assert space_directions.shape == (3, 3)
+        # make sure it's diagonal
+        assert (
+            np.count_nonzero(
+                space_directions - np.diag(np.diagonal(space_directions))
+            )
+            == 0
+        )
+        # if all the diagonal elements are 1, multiply by the voxel size
+        if np.all(np.diagonal(space_directions) == 1):
+            logging.warning(
+                "Space directions are all 1, so multiplying by voxel size."
+            )
+            space_directions = space_directions * voxel_size
+        logging.info(f"Space directions: {space_directions}")
+
+        origin = header["space origin"]
+        assert origin.shape == (3,)
+        logging.info(f"Space origin: {origin}")
 
         tmat = np.vstack((space_directions, origin))
         # Make homogeneous
@@ -50,7 +72,7 @@ class NRRDToHDF5:
 
         self.tmat = np.linalg.inv(tmat.T)
 
-    def save_to_hdf5(self, output_folder, sample_name):
+    def save_hdf5(self, output_file: str) -> None:
         """
         Save the displacement field and transformation matrix to an HDF5 file.
 
@@ -61,20 +83,9 @@ class NRRDToHDF5:
         sample_name : str
             Name of the sample to include in the HDF5 file name.
         """
-        output_file = os.path.join(output_folder, f'Transform.{sample_name}.h5')
-        if os.path.exists(output_file):
-            os.remove(output_file)
-
-        with h5py.File(output_file, 'w') as h5file:
-            h5file.create_dataset('/DisplacementField', data=self.disp)
-            h5file['/DisplacementField'].attrs['Transformation_Matrix'] = self.tmat
-
-
-if __name__ == '__main__':
-    nrrd_file = r"C:\Users\cameron.arshadi\Downloads\Displacement Field_653980.nrrd"
-    sample_name = '653158'
-    output_folder = r'C:\Users\cameron.arshadi\Downloads'
-
-    converter = NRRDToHDF5(nrrd_file)
-    converter.save_to_hdf5(output_folder, sample_name)
-    print('\nDone!\n')
+        Path(output_file).parent.mkdir(parents=True, exist_ok=True)
+        with h5py.File(output_file, "w") as h5file:
+            h5file.create_dataset("/DisplacementField", data=self.disp)
+            h5file["/DisplacementField"].attrs[
+                "Transformation_Matrix"
+            ] = self.tmat
