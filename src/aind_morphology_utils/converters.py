@@ -36,6 +36,8 @@ class NRRDToHDF5:
         ----------
         header : dict
             Header information from the NRRD file.
+        voxel_size : int
+            The size of the voxels in microns.
         """
         if header["space"] in ["left-posterior-superior", "LPS"]:
             # Change orientation from LPS to RAS
@@ -78,10 +80,8 @@ class NRRDToHDF5:
 
         Parameters
         ----------
-        output_folder : str
-            Path to the folder where the HDF5 file will be saved.
-        sample_name : str
-            Name of the sample to include in the HDF5 file name.
+        output_file : str
+            Path to the output HDF5 file.
         """
         Path(output_file).parent.mkdir(parents=True, exist_ok=True)
         with h5py.File(output_file, "w") as h5file:
