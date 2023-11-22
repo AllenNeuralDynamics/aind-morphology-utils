@@ -1,9 +1,24 @@
 import logging
+from enum import Enum
 from typing import Dict
 
 import networkx as nx
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class StructureTypes(Enum):
+    """
+    An enumeration of structure types.
+    """
+    UNDEFINED = 0
+    SOMA = 1
+    AXON = 2
+    BASAL_DENDRITE = 3
+    APICAL_DENDRITE = 4
+    FORK_POINT = 5
+    END_POINT = 6
+    CUSTOM = 7
 
 
 class NeuronGraph(nx.DiGraph):
@@ -126,7 +141,7 @@ class NeuronGraph(nx.DiGraph):
 
         Parameters
         ----------
-        structure_type : str
+        structure_type : int
             The structure type to be set for all nodes.
         """
         for node in self.nodes():

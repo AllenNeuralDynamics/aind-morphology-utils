@@ -3,13 +3,15 @@ import os
 from collections import defaultdict
 from pathlib import Path
 from typing import List, Dict, Tuple
+
 import networkx as nx
-from aind_morphology_utils.swc import NeuronGraph
+
+from aind_morphology_utils.swc import NeuronGraph, StructureTypes
 
 
 def group_neuron_files(
     file_names: List[str],
-) -> Dict[Tuple[str, str], List[str]]:
+) -> Dict[Tuple[str, str, str], List[str]]:
     """
     Group neuron files by neuron ID and tracer initials,
     where the group corresponds to different compartment tracings of the same cell.
@@ -100,8 +102,8 @@ def merge_swcs(files: List[str]) -> NeuronGraph:
     axon = NeuronGraph.from_swc(axon_file)
 
     # Set structure types for dendrite and axon
-    dendrite.set_constant_structure_type(3)
-    axon.set_constant_structure_type(2)
+    dendrite.set_constant_structure_type(StructureTypes.BASAL_DENDRITE.value)
+    axon.set_constant_structure_type(StructureTypes.AXON.value)
 
     # Merge the graphs
     dendrite_root = min(
@@ -120,7 +122,7 @@ def merge_swcs(files: List[str]) -> NeuronGraph:
 
     # Set the structure type of the root node to 1
     merged_root = min(merged_graph.nodes)
-    merged_graph.nodes[merged_root]["struct_type"] = 1
+    merged_graph.nodes[merged_root]["struct_type"] = StructureTypes.SOMA.value
 
     return merged_graph
 
