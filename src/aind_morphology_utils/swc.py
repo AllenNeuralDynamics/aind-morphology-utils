@@ -15,7 +15,7 @@ class NeuronGraph(nx.DiGraph):
         super().__init__()
 
     @staticmethod
-    def swc_to_graph(swc_file_path: str) -> "NeuronGraph":
+    def from_swc(swc_file_path: str) -> "NeuronGraph":
         """
         Load an SWC file into a NeuronGraph.
 
@@ -132,7 +132,7 @@ class NeuronGraph(nx.DiGraph):
         for node in self.nodes():
             self.nodes[node]["struct_type"] = structure_type
 
-    def save_as_swc(self, swc_path: str) -> None:
+    def save_swc(self, swc_path: str) -> None:
         """
         Save the graph as an SWC file.
 

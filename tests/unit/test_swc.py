@@ -22,9 +22,9 @@ class TestNeuronGraph(unittest.TestCase):
             swc_data = self.sample_swc_data
         mock_open = mock.mock_open(read_data=swc_data)
         with mock.patch("builtins.open", mock_open):
-            return NeuronGraph.swc_to_graph("dummy_path.swc")
+            return NeuronGraph.from_swc("dummy_path.swc")
 
-    def test_swc_to_graph(self):
+    def test_from_swc(self):
         """Test loading a graph from an SWC file."""
         graph = self.create_graph_from_mock_data()
         self.assertEqual(len(graph.nodes), 4)
@@ -33,14 +33,14 @@ class TestNeuronGraph(unittest.TestCase):
     def test_set_constant_structure_type(self):
         """Test setting a constant structure type for all nodes."""
         graph = self.create_graph_from_mock_data()
-        graph.set_constant_structure_type("test_type")
+        graph.set_constant_structure_type(2)
         for _, node_data in graph.nodes(data=True):
-            self.assertEqual(node_data["struct_type"], "test_type")
+            self.assertEqual(node_data["struct_type"], 2)
 
     def test_set_structure_types(self):
         """Test setting structure types for nodes based on a mapping."""
         graph = self.create_graph_from_mock_data()
-        structure_type_map = {1: "type1", 2: "type2", 3: "type3", 4: "type4"}
+        structure_type_map = {1: 1, 2: 2, 3: 2, 4: 3}
         graph.set_structure_types(structure_type_map)
         for node_id, node_data in graph.nodes(data=True):
             self.assertEqual(
@@ -113,7 +113,7 @@ class TestNeuronGraph(unittest.TestCase):
         graph = self.create_graph_from_mock_data()
         mock_open = mock.mock_open()
         with mock.patch("builtins.open", mock_open):
-            graph.save_as_swc("dummy_path.swc")
+            graph.save_swc("dummy_path.swc")
         expected_lines = [
             "1 1 0.0 0.0 0.0 0.5 -1\n",
             "2 3 1.0 0.0 0.0 0.3 1\n",
@@ -129,7 +129,7 @@ class TestNeuronGraph(unittest.TestCase):
             5, x=2.0, y=2.0, z=2.0
         )  # Missing struct_type and radius
         with self.assertRaises(KeyError):
-            graph.save_as_swc("dummy_path.swc")
+            graph.save_swc("dummy_path.swc")
 
     def test_save_as_swc_io_error(self):
         """Test handling I/O error when saving as SWC."""
@@ -137,7 +137,7 @@ class TestNeuronGraph(unittest.TestCase):
         with mock.patch("builtins.open", mock.mock_open()) as mocked_open:
             mocked_open.side_effect = IOError("Failed to open file")
             with self.assertRaises(IOError):
-                graph.save_as_swc("dummy_path.swc")
+                graph.save_swc("dummy_path.swc")
 
 
 if __name__ == "__main__":

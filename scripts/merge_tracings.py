@@ -95,8 +95,8 @@ def merge_swcs(files: List[str]) -> NeuronGraph:
     if not dendrite_file or not axon_file:
         raise ValueError("Could not find both axon and dendrite files")
 
-    dendrite = NeuronGraph.swc_to_graph(dendrite_file)
-    axon = NeuronGraph.swc_to_graph(axon_file)
+    dendrite = NeuronGraph.from_swc(dendrite_file)
+    axon = NeuronGraph.from_swc(axon_file)
 
     # Set structure types for dendrite and axon
     dendrite.set_constant_structure_type(3)
@@ -146,13 +146,13 @@ def main(swc_dir: str, out_dir: str, ignore_list: List[str]) -> None:
         elif len(files) == 2:
             merged_graph = merge_swcs(files)
         elif len(files) == 1:
-            merged_graph = NeuronGraph.swc_to_graph(files[0])
+            merged_graph = NeuronGraph.from_swc(files[0])
         else:
             raise ValueError(
                 f"Expected 1 or more graphs to merge, got {len(files)}"
             )
 
-        merged_graph.save_as_swc(
+        merged_graph.save_swc(
             os.path.join(
                 out_dir, f"{group_key[0]}-{group_key[1]}-{group_key[2]}.swc"
             )
