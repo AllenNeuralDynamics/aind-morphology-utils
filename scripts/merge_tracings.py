@@ -11,7 +11,10 @@ def group_neuron_files(
     file_names: List[str],
 ) -> Dict[Tuple[str, str], List[str]]:
     """
-    Group neuron files by neuron ID and tracer initials.
+    Group neuron files by neuron ID and tracer initials,
+    where the group corresponds to different compartment tracings of the same cell.
+    For example, the files "N001-653158-dendrite-CA.swc" and "N001-653158-axon-CA.swc"
+    would be grouped together.
 
     Parameters
     ----------
@@ -20,7 +23,7 @@ def group_neuron_files(
 
     Returns
     -------
-    Dict[Tuple[str, sample, str], List[str]]
+    Dict[Tuple[str, str, str], List[str]]
         A dictionary where the key is a tuple (neuron ID, sample, tracer initials) and the value is a list of file paths.
     """
     grouped_files = defaultdict(list)
@@ -69,14 +72,12 @@ def merge_swcs(files: List[str]) -> NeuronGraph:
 
     Parameters
     ----------
-    graphs : List[nx.DiGraph]
-        List of graphs to be merged.
     files : List[str]
         List of file names corresponding to the graphs.
 
     Returns
     -------
-    nx.DiGraph
+    NeuronGraph
         The merged graph.
 
     Raises
