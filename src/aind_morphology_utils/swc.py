@@ -28,9 +28,10 @@ class NeuronGraph(nx.DiGraph):
 
     def __init__(self):
         super().__init__()
+        self.offset = [0.0, 0.0, 0.0]  # X Y Z
 
-    @staticmethod
-    def from_swc(swc_file_path: str) -> "NeuronGraph":
+    @classmethod
+    def from_swc(cls, swc_file_path: str) -> "NeuronGraph":
         """
         Load an SWC file into a NeuronGraph.
 
@@ -51,8 +52,7 @@ class NeuronGraph(nx.DiGraph):
         ValueError
             If there is an invalid line format in the SWC file.
         """
-        graph = NeuronGraph()
-        offset = [0.0, 0.0, 0.0]  # Initialize default offset
+        graph = cls()  # Instantiate a new NeuronGraph object
 
         def parse_offset(line: str) -> list:
             """Parse the OFFSET line and return the offset values as a list of floats."""
@@ -91,7 +91,7 @@ class NeuronGraph(nx.DiGraph):
                 for line in file:
                     if line.startswith("#"):
                         if "OFFSET" in line:
-                            offset = parse_offset(line)
+                            graph.offset = parse_offset(line)
                         continue
                     (
                         node_id,
@@ -101,7 +101,7 @@ class NeuronGraph(nx.DiGraph):
                         z,
                         radius,
                         parent_id,
-                    ) = parse_line(line, offset)
+                    ) = parse_line(line, graph.offset)
                     graph.add_node(
                         node_id,
                         struct_type=struct_type,
