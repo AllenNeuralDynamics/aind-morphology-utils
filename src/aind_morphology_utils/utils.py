@@ -163,7 +163,7 @@ def read_swc(swc_path: Union[str, os.PathLike], add_offset: bool = True) -> Morp
     return morph
 
 
-def read_registration_transform(reg_path: Union[str, os.PathLike]) -> Tuple[Any, Any]:
+def read_registration_transform(reg_path: Union[str, os.PathLike], affine_only: bool = False) -> Tuple[Any, Any]:
     """
     Imports ants transformation from registration output
 
@@ -171,6 +171,8 @@ def read_registration_transform(reg_path: Union[str, os.PathLike]) -> Tuple[Any,
     -------------
     reg_path: str or pathlib.Path
         Path to .gz file from registration
+    affine_only: bool
+        If True, only return affine transform
 
     Returns
     -------------
@@ -180,6 +182,9 @@ def read_registration_transform(reg_path: Union[str, os.PathLike]) -> Tuple[Any,
     affine_file = glob(os.path.join(reg_path, '*.mat'))[0]
     affine = read_transform(affine_file)
     affinetx = affine.invert()
+    if affine_only:
+        return affinetx, None
+
     warp_file = glob(os.path.join(reg_path, '*.gz'))[0]
     warp = image_read(warp_file)
     warptx = transform_from_displacement_field(warp)

@@ -15,7 +15,7 @@ from aind_morphology_utils.utils import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
+_LOGGER.setLevel(logging.INFO)
 
 class AntsTransform:
     """
@@ -48,9 +48,10 @@ class AntsTransform:
         swc_scale: List[float],
         flip_axes: List[bool],
         input_scale: int,
+        affine_only: bool = False,
     ):
         self.affinetx, self.warptx = read_registration_transform(
-            registration_folder
+            registration_folder, affine_only
         )
         self.sx, self.sy, self.sz = get_voxel_size_image(
             image_path, input_scale
@@ -93,7 +94,11 @@ class AntsTransform:
             pt = flip_pt(pt, [self.sx, self.sy, self.sz], self.flip_axes)
             scaled_pt = [dim * scale for dim, scale in zip(pt, scale)]
             affine_pt = self.affinetx.apply_to_point(scaled_pt)
-            warp_pt = self.warptx.apply_to_point(affine_pt)
+            if self.warptx is None:
+                # _LOGGER.info("No warp transform found, using affine only")
+                warp_pt = affine_pt
+            else:
+                warp_pt = self.warptx.apply_to_point(affine_pt)
             scaled_warp_pt = [
                 dim * scale for dim, scale in zip(warp_pt, self.transform_res)
             ]
