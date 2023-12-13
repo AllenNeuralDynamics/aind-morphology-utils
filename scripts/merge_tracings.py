@@ -150,6 +150,14 @@ def merge_swcs_in_folder(swc_dir: str, out_dir: str, ignore_list: List[str]) -> 
             merged_graph = merge_swcs(files)
         elif len(files) == 1:
             merged_graph = NeuronGraph.from_swc(files[0])
+            if "axon" in Path(files[0]).name:
+                merged_graph.set_constant_structure_type(
+                    StructureTypes.AXON.value
+                )
+            elif "dendrite" in Path(files[0]).name:
+                merged_graph.set_constant_structure_type(
+                    StructureTypes.BASAL_DENDRITE.value
+                )
         else:
             raise ValueError(
                 f"Expected 1 or more graphs to merge, got {len(files)}"

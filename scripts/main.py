@@ -29,7 +29,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument('--swc-scale', type=float, nargs='+', default=[0.748, 0.748, 1])
     parser.add_argument('--flip-axes', type=int, nargs='+', default=[])
     parser.add_argument('--input-scale', type=int, default=5)
-    parser.add_argument('--affine-only', default=True, action='store_true')
+    parser.add_argument('--affine-only', default=False, action='store_true')
     parser.add_argument('--log-level', type=str, default=logging.INFO)
     return parser.parse_args()
 

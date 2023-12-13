@@ -5,13 +5,13 @@ def transform_swc_files(
     transform_file: str, swcs_folder: str, output_folder: str
 ) -> None:
     """
-    Apply the transformation defined in the HDF5 file to all SWC files
+    Apply the transformation defined in the OME-Zarr file to all SWC files
     in the specified folder and save the transformed SWC files in the output folder.
 
     Parameters
     ----------
     transform_file : str
-        The path to the HDF5 file containing the transform.
+        The path to the OME-Zarr file containing the transform.
     swcs_folder : str
         The directory containing the SWC files to be transformed.
     output_folder : str
