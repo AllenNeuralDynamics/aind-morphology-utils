@@ -2,22 +2,12 @@ import logging
 from pathlib import Path
 
 import numpy as np
-import h5py
 import nrrd
+import zarr
+import ome_zarr.writer
 
 
-class NRRDToHDF5:
-    """
-    A class to handle the conversion of displacement fields created in 3D Slicer from NRRD to HDF5 format.
-
-    Attributes
-    ----------
-    disp : ndarray
-        The displacement field data.
-    tmat : ndarray
-        The transformation matrix associated with the displacement field.
-    """
-
+class NRRDToOMEZarr:
     def __init__(self, nrrd_file: str):
         """
         Parameters
@@ -28,7 +18,7 @@ class NRRDToHDF5:
         self.disp, header = nrrd.read(nrrd_file)
         self._process_header(header)
 
-    def _process_header(self, header: dict, voxel_size: int = 25) -> None:
+    def _process_header(self, header: dict, voxel_size: int = 25):
         """
         Process the header information from the NRRD file to extract the transformation matrix.
 
@@ -44,24 +34,14 @@ class NRRDToHDF5:
             self.disp[0:2, :, :, :] = -self.disp[0:2, :, :, :]
 
         space_directions = header["space directions"]
-        # First row is nan for some reason??
-        space_directions = space_directions[
-            ~np.all(np.isnan(space_directions), axis=1)
-        ]
+        space_directions = space_directions[~np.all(np.isnan(space_directions), axis=1)]
         assert space_directions.shape == (3, 3)
-        # make sure it's diagonal
-        assert (
-            np.count_nonzero(
-                space_directions - np.diag(np.diagonal(space_directions))
-            )
-            == 0
-        )
-        # if all the diagonal elements are 1, multiply by the voxel size
+        assert np.count_nonzero(space_directions - np.diag(np.diagonal(space_directions))) == 0
+
         if np.all(np.diagonal(space_directions) == 1):
-            logging.warning(
-                "Space directions are all 1, so multiplying by voxel size."
-            )
-            space_directions = space_directions * voxel_size
+            logging.warning("Space directions are all 1, so multiplying by voxel size.")
+            space_directions *= voxel_size
+
         logging.info(f"Space directions: {space_directions}")
 
         origin = header["space origin"]
@@ -69,23 +49,22 @@ class NRRDToHDF5:
         logging.info(f"Space origin: {origin}")
 
         tmat = np.vstack((space_directions, origin))
-        # Make homogeneous
         tmat = np.hstack((tmat, [[0], [0], [0], [1]]))
 
         self.tmat = np.linalg.inv(tmat.T)
 
-    def save_hdf5(self, output_file: str) -> None:
-        """
-        Save the displacement field and transformation matrix to an HDF5 file.
+    def save(self, out_zarr: str) -> None:
+        Path(out_zarr).mkdir(parents=True, exist_ok=True)
 
-        Parameters
-        ----------
-        output_file : str
-            Path to the output HDF5 file.
-        """
-        Path(output_file).parent.mkdir(parents=True, exist_ok=True)
-        with h5py.File(output_file, "w") as h5file:
-            h5file.create_dataset("/DisplacementField", data=self.disp)
-            h5file["/DisplacementField"].attrs[
-                "Transformation_Matrix"
-            ] = self.tmat
+        zarr_file = zarr.open(out_zarr, mode="w")
+        group = zarr_file.create_group("DisplacementField")
+
+        ome_zarr.writer.write_image(
+            self.disp,
+            group,
+            scaler=None,
+            storage_options={"chunks": (3, 64, 64, 64)},
+            axes=["c", "x", "y", "z"],
+        )
+
+        zarr_file.create_dataset("TransformationMatrix", data=self.tmat)

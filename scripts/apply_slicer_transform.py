@@ -1,4 +1,4 @@
-from aind_morphology_utils.coordinate_mapping import HDF5Transform
+from aind_morphology_utils.coordinate_mapping import OMEZarrTransform
 
 
 def transform_swc_files(
@@ -21,7 +21,7 @@ def transform_swc_files(
     -------
     None
     """
-    transformer = HDF5Transform(transform_file)
+    transformer = OMEZarrTransform(transform_file)
     transformer.transform_swc_files(swcs_folder, output_folder)
 
 
@@ -29,11 +29,11 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Transform SWC files using a given HDF5 transformation file."
+        description="Transform SWC files using a given OME-Zarr transformation file."
     )
     parser.add_argument(
         "--transform_file",
-        help="Path to the HDF5 file containing the transformation.",
+        help="Path to the OME-Zarr file containing the transformation.",
     )
     parser.add_argument(
         "--swcs_folder",

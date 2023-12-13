@@ -3,8 +3,8 @@ import os
 from copy import deepcopy
 from typing import List
 
-import h5py
 import numpy as np
+import zarr
 from allensdk.core.swc import Morphology
 
 from aind_morphology_utils.utils import (
@@ -109,7 +109,7 @@ class AntsTransform:
         return morph_copy
 
 
-class HDF5Transform:
+class OMEZarrTransform:
     """
     A class to handle transformations using a displacement vector field.
 
@@ -128,13 +128,11 @@ class HDF5Transform:
         Parameters
         ----------
         transform_file : str
-            Path to the HDF5 transformation file.
+            Path to the Zarr file containing the transformation matrix and vector field.
         """
-        with h5py.File(transform_file, "r") as f:
-            self.transform_matrix = f["/DisplacementField"].attrs[
-                "Transformation_Matrix"
-            ]
-            self.vector_field = f["/DisplacementField"][...]
+        z = zarr.open(transform_file, mode="r")
+        self.transform_matrix = z["TransformationMatrix"][:]
+        self.vector_field = z["DisplacementField"]['0'][:]
 
     def transform(self, morph) -> Morphology:
         """

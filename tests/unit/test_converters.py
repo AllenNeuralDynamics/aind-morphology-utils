@@ -2,12 +2,12 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import numpy as np
-import h5py
+import zarr
 
-from aind_morphology_utils.converters import NRRDToHDF5
+from aind_morphology_utils.converters import NRRDToOMEZarr
 
 
-class TestNRRDToHDF5(unittest.TestCase):
+class TestNRRDToOMEZarr(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.test_dir.cleanup)
@@ -25,7 +25,7 @@ class TestNRRDToHDF5(unittest.TestCase):
         }
 
     @patch("nrrd.read")
-    def test_save_hdf5(self, mock_nrrd_read):
+    def test_save(self, mock_nrrd_read):
         # Mock nrrd.read to return the mock data and header
         mock_nrrd_read.return_value = (
             self.mock_nrrd_data,
@@ -33,24 +33,19 @@ class TestNRRDToHDF5(unittest.TestCase):
         )
 
         # Use a temporary file for the HDF5 output
-        with tempfile.NamedTemporaryFile(
-            dir=self.test_dir.name, delete=False
-        ) as tmp_file:
-            converter = NRRDToHDF5("dummy_path")
-            converter.save_hdf5(tmp_file.name)
+        with tempfile.TemporaryDirectory() as tmp_file:
+            converter = NRRDToOMEZarr("dummy_path")
+            converter.save(tmp_file)
 
-            # Open the file outside the context to avoid file lock issues on some systems
-            output_file = tmp_file.name
-
-        # Check if HDF5 file is created with correct content
-        with h5py.File(output_file, "r") as h5file:
+            # Check if HDF5 file is created with correct content
+            z = zarr.open(tmp_file, mode="r")
             expected_tmat = np.eye(4)
             expected_tmat[:, 0:3] /= 25
             np.testing.assert_array_equal(
-                h5file["/DisplacementField"][...], self.mock_nrrd_data
+                z["DisplacementField"]['0'][:], self.mock_nrrd_data
             )
             np.testing.assert_array_equal(
-                h5file["/DisplacementField"].attrs["Transformation_Matrix"],
+                z["TransformationMatrix"],
                 expected_tmat,
             )
 

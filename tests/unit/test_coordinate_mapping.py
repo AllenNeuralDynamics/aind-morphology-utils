@@ -1,12 +1,13 @@
 import unittest
 
-import h5py
 import numpy as np
-from aind_morphology_utils.coordinate_mapping import HDF5Transform
+import zarr
+
+from aind_morphology_utils.coordinate_mapping import OMEZarrTransform
 from allensdk.core.swc import Morphology, Compartment
 
 
-class TestHDF5Transform(unittest.TestCase):
+class TestOMEZarrTransform(unittest.TestCase):
     def setUp(self):
         # Define a known transformation matrix and vector field
         self.transformation_matrix = np.array(
@@ -18,14 +19,9 @@ class TestHDF5Transform(unittest.TestCase):
         )  # Known displacement at position (1, 2, 3)
 
         # Create the mock HDF5 file with the known transformation matrix and vector field
-        self.hdf5_file = h5py.File("mock_hdf5.h5", "w")
-        self.hdf5_file.create_dataset(
-            "/DisplacementField", data=self.vector_field
-        )
-        self.hdf5_file["/DisplacementField"].attrs[
-            "Transformation_Matrix"
-        ] = self.transformation_matrix
-        self.hdf5_file.close()
+        self.z = zarr.open("mock.zarr", "w")
+        self.z["DisplacementField/0"] = self.vector_field
+        self.z["TransformationMatrix"] = self.transformation_matrix
 
     def test_transform(self):
         morph_data = [
@@ -43,7 +39,7 @@ class TestHDF5Transform(unittest.TestCase):
         ]
         original_morph = Morphology(morph_data)
 
-        transformer = HDF5Transform("mock_hdf5.h5")
+        transformer = OMEZarrTransform("mock.zarr")
 
         transformed_morph = transformer.transform(original_morph)
 
