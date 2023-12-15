@@ -127,7 +127,7 @@ def merge_swcs(files: List[str]) -> NeuronGraph:
     return merged_graph
 
 
-def main(swc_dir: str, out_dir: str, ignore_list: List[str]) -> None:
+def merge_swcs_in_folder(swc_dir: str, out_dir: str, ignore_list: List[str]) -> None:
     """
     Process SWC files in the given directory by merging axon and dendrite files.
 
@@ -150,6 +150,14 @@ def main(swc_dir: str, out_dir: str, ignore_list: List[str]) -> None:
             merged_graph = merge_swcs(files)
         elif len(files) == 1:
             merged_graph = NeuronGraph.from_swc(files[0])
+            if "axon" in Path(files[0]).name:
+                merged_graph.set_constant_structure_type(
+                    StructureTypes.AXON.value
+                )
+            elif "dendrite" in Path(files[0]).name:
+                merged_graph.set_constant_structure_type(
+                    StructureTypes.BASAL_DENDRITE.value
+                )
         else:
             raise ValueError(
                 f"Expected 1 or more graphs to merge, got {len(files)}"
@@ -184,4 +192,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     os.makedirs(args.out_dir, exist_ok=True)
-    main(args.swc_dir, args.out_dir, args.ignore_list)
+    merge_swcs_in_folder(args.swc_dir, args.out_dir, args.ignore_list)

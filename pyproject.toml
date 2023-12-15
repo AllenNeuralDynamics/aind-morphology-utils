@@ -23,7 +23,8 @@ dependencies = [
     "antspyx",
     "scipy",
     "s3fs",
-    "networkx"
+    "networkx",
+    "ome-zarr"
 ]
 
 [project.optional-dependencies]
