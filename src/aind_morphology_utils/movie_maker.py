@@ -174,8 +174,6 @@ class MovieMaker:
         self.frame_generator = frame_generator
         self.frame_dir = frame_dir
 
-        if os.path.isdir(frame_dir):
-            shutil.rmtree(frame_dir)
         os.makedirs(frame_dir, exist_ok=True)
 
     def write_frames(
@@ -350,7 +348,7 @@ def main():
     parser.add_argument(
         "--cache_size",
         type=int,
-        default=4 * 1024**3,
+        default=1024**3,
         help="Maximum size of the Zarr cache. Defaults to 1GB.",
     )
     parser.add_argument("--log_level", default="INFO", help="Logging level.")
