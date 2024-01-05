@@ -85,23 +85,7 @@ class TestMovieMaker(unittest.TestCase):
         mock_arr = zarr.array(np.random.rand(1, 1, 5, 5, 5))
         mock_coords = [(2, 2, 2)]
 
-        self.movie_maker.write_frames(mock_coords, mock_arr)
-        self.assertEqual(mock_imwrite.call_count, 5)
-
-    @patch("aind_morphology_utils.movie_maker.os.path.isdir")
-    @patch("aind_morphology_utils.movie_maker.os.makedirs")
-    @patch("aind_morphology_utils.movie_maker.imageio.imwrite")
-    def test_write_frames_parallel(
-        self, mock_imwrite, mock_makedirs, mock_isdir
-    ):
-        mock_isdir.return_value = False
-
-        mock_arr = zarr.array(np.random.rand(1, 1, 5, 5, 5), dtype=np.uint16)
-        mock_coords = [(2, 2, 2)]
-
-        self.movie_maker.write_frames_parallel(
-            mock_coords, mock_arr, max_workers=1
-        )
+        self.movie_maker.write_frames(mock_coords, mock_arr, max_workers=1)
         self.assertEqual(mock_imwrite.call_count, 5)
 
 
