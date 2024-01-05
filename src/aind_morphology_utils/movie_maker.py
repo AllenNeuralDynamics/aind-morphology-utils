@@ -45,6 +45,10 @@ class MovieConfig(BaseModel):
         default=None,
         description="Maximum number of workers for parallel processing.",
     )
+    cache_size: int = Field(
+        default=1024**3,
+        description="Maximum size of the Zarr cache. Defaults to 1GB.",
+    )
 
 
 class FrameGenerationStrategy:
@@ -343,6 +347,12 @@ def main():
         default=None,
         help="Maximum number of workers for parallel processing.",
     )
+    parser.add_argument(
+        "--cache_size",
+        type=int,
+        default=4 * 1024**3,
+        help="Maximum size of the Zarr cache. Defaults to 1GB.",
+    )
     parser.add_argument("--log_level", default="INFO", help="Logging level.")
 
     args = parser.parse_args()
@@ -360,6 +370,7 @@ def main():
             vmax=args.vmax,
             swc_path=args.swc_path,
             max_workers=args.max_workers,
+            cache_size=args.cache_size,
         )
     except ValidationError as e:
         logging.error(f"Configuration validation error: {e}")
@@ -368,7 +379,7 @@ def main():
     logging.basicConfig(level=logging.INFO)
 
     # Load data and coordinates
-    ds = _open_zarr(config.zarr_path, "0")
+    ds = _open_zarr(config.zarr_path, "0", max_cache_size=config.cache_size)
 
     if config.n_frames == -1:
         config.n_frames = len(list(_swc_to_coords(config.swc_path)))
