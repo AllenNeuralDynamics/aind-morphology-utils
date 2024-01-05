@@ -406,7 +406,7 @@ def main():
         logging.error(f"Configuration validation error: {e}")
         return
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=args.log_level)
 
     # Load data and coordinates
     ds = _open_zarr(config.zarr_path, "0", max_cache_size=config.cache_size)
