@@ -2,6 +2,8 @@ import argparse
 import logging
 import os
 import shutil
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Generator, Tuple, List, Optional
 
 import imageio
@@ -11,6 +13,7 @@ import s3fs
 import zarr
 from pydantic import BaseModel, Field, ValidationError
 from skimage.exposure import rescale_intensity
+from tqdm import tqdm
 
 from aind_morphology_utils.swc import NeuronGraph
 
@@ -18,9 +21,7 @@ from aind_morphology_utils.swc import NeuronGraph
 class MovieConfig(BaseModel):
     zarr_path: str = Field(..., description="Path to the zarr dataset.")
     swc_path: str = Field(..., description="Path to the SWC file.")
-    frame_dir: str = Field(
-        ..., description="Directory to save the frames in."
-    )
+    frame_dir: str = Field(..., description="Directory to save the frames in.")
     n_frames: int = Field(
         default=-1,
         description="Number of frames to generate. Use -1 to generate all "
@@ -39,6 +40,10 @@ class MovieConfig(BaseModel):
     )
     vmax: int = Field(
         default=1000, description="Maximum intensity for rescaling."
+    )
+    max_workers: int | None = Field(
+        default=None,
+        description="Maximum number of workers for parallel processing.",
     )
 
 
@@ -134,7 +139,9 @@ class FrameGenerator:
         self.strategy = strategy
 
     def generate(
-        self, coords: List[Tuple[int, int, int]], arr: zarr.core.Array
+        self,
+        coords: List[Tuple[int, int, int]] | np.ndarray,
+        arr: zarr.core.Array,
     ) -> Generator[np.ndarray, None, None]:
         """
         Generates frames based on the provided strategy.
@@ -181,14 +188,76 @@ class MovieMaker:
             The zarr array containing image data.
         """
         try:
-            for i, frame in enumerate(
-                self.frame_generator.generate(coords, arr)
+            for i, frame in tqdm(
+                enumerate(
+                    self.frame_generator.generate(coords, arr),
+                )
             ):
                 frame_path = os.path.join(self.frame_dir, f"frame_{i:04d}.png")
                 imageio.imwrite(frame_path, frame)
-                logging.info(f"Frame {i} saved")
+                logging.debug(f"Frame {i} saved")
         except Exception as e:
             logging.error(f"An error occurred: {e}")
+
+    def write_frames_parallel(
+        self,
+        coords: List[Tuple[int, int, int]] | np.ndarray,
+        arr: zarr.core.Array,
+        max_workers: int = None,
+    ):
+        """
+        Creates a movie by generating and saving frames in parallel.
+
+        Parameters
+        ----------
+        coords : List[Tuple[int, int, int]]
+            List of coordinates to generate frames.
+        arr : zarr.core.Array
+            The zarr array containing image data.
+        max_workers : int, optional
+            The maximum number of threads to use for parallel processing.
+        """
+        chunks = np.array_split(coords, max_workers or os.cpu_count())
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = []
+            start_idx = 0
+            for chunk in chunks:
+                futures.append(
+                    executor.submit(self._process_chunk, chunk, arr, start_idx)
+                )
+                start_idx += len(chunk)
+
+            for future in tqdm(futures):
+                try:
+                    future.result()
+                except Exception as e:
+                    logging.error(f"Error processing chunk: {e}")
+
+    def _process_chunk(
+        self,
+        chunk: List[Tuple[int, int, int]] | np.ndarray,
+        arr: zarr.core.Array,
+        start_idx: int,
+    ):
+        """
+        Processes a chunk of coordinates, generating and saving frames.
+
+        Parameters
+        ----------
+        chunk : List[Tuple[int, int, int] or np.ndarray
+            A chunk of coordinates to process.
+        arr : zarr.core.Array
+            The zarr array containing image data.
+        start_idx : int
+            The starting index of this chunk in the original list of coordinates.
+        """
+        for i, frame in enumerate(
+            self.frame_generator.generate(chunk, arr), start=start_idx
+        ):
+            frame_path = os.path.join(self.frame_dir, f"frame_{i:04d}.png")
+            imageio.imwrite(frame_path, frame)
+            logging.debug(f"Frame {i} saved")
 
 
 def _swc_to_coords(
@@ -251,6 +320,7 @@ def main():
     parser.add_argument(
         "--zarr_path",
         help="Path to the zarr dataset.",
+        # default="s3://aind-open-data/exaSPIM_674185_2023-10-02_14-06-36_flatfield-correction_2023-11-17_00-33-17_fusion_2023-11-23_12-56-00/fused.zarr"
     )
     parser.add_argument(
         "--n_frames",
@@ -276,6 +346,7 @@ def main():
     parser.add_argument(
         "--frame_dir",
         help="Directory to save the frames in.",
+        # default="frames-test"
     )
     parser.add_argument(
         "--vmin", type=int, default=0, help="Minimum intensity for rescaling."
@@ -289,6 +360,13 @@ def main():
     parser.add_argument(
         "--swc_path",
         help="Path to the SWC file.",
+        # default=r"C:\Users\cameron.arshadi\Downloads\N014-674185-dendrite-PG.swc"
+    )
+    parser.add_argument(
+        "--max_workers",
+        type=int,
+        default=None,
+        help="Maximum number of workers for parallel processing.",
     )
     parser.add_argument("--log_level", default="INFO", help="Logging level.")
 
@@ -306,6 +384,7 @@ def main():
             vmin=args.vmin,
             vmax=args.vmax,
             swc_path=args.swc_path,
+            max_workers=args.max_workers,
         )
     except ValidationError as e:
         logging.error(f"Configuration validation error: {e}")
@@ -318,9 +397,7 @@ def main():
 
     if config.n_frames == -1:
         config.n_frames = len(list(_swc_to_coords(config.swc_path)))
-    coords = list(_swc_to_coords(config.swc_path))[
-        : config.n_frames
-    ]
+    coords = list(_swc_to_coords(config.swc_path))[: config.n_frames]
 
     # Setup FrameGenerator and MovieMaker
     strategy = MaxIntensityProjectionStrategy(
@@ -329,7 +406,15 @@ def main():
     frame_generator = FrameGenerator(strategy)
     movie_maker = MovieMaker(frame_generator, config.frame_dir)
 
-    movie_maker.write_frames(coords, ds)
+    # t0 = time.time()
+    # movie_maker.write_frames(coords, ds)
+    # t1 = time.time()
+    # print(f"Serial processing took {t1 - t0} seconds")
+
+    t0 = time.time()
+    movie_maker.write_frames_parallel(coords, ds, config.max_workers)
+    t1 = time.time()
+    print(f"Parallel processing took {t1 - t0} seconds")
 
 
 if __name__ == "__main__":
