@@ -318,7 +318,7 @@ def main():
 
     if config.n_frames == -1:
         config.n_frames = len(list(_swc_to_coords(config.swc_path)))
-    coords = list(reversed(list(_swc_to_coords(config.swc_path))))[
+    coords = list(_swc_to_coords(config.swc_path))[
         : config.n_frames
     ]
 
