@@ -1,7 +1,6 @@
 import argparse
 import logging
 import os
-import shutil
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Generator, Tuple, List, Optional
@@ -82,11 +81,26 @@ class MaxIntensityProjectionStrategy(FrameGenerationStrategy):
 
     def __init__(
         self,
-        mip_size: int = 10,
+        mip_size: int = 5,
         frame_size: Tuple[int, int] = (512, 512),
         vmin: int = 0,
         vmax: int = 1000,
     ):
+        """
+        Initializes the Maximum Intensity Projection strategy.
+
+        Parameters
+        ----------
+        mip_size : int
+            Number of frames on either side of the SWC point to include in the
+            MIP.
+        frame_size : Tuple[int, int]
+            Size of the frame to be generated (width, height).
+        vmin : int
+            Minimum intensity value for rescaling.
+        vmax : int
+            Maximum intensity value for rescaling.
+        """
         self.mip_size = mip_size
         self.frame_size = frame_size
         self.vmin = vmin
@@ -140,6 +154,14 @@ class FrameGenerator:
     """
 
     def __init__(self, strategy: FrameGenerationStrategy):
+        """
+        Initializes the frame generator with a given strategy.
+
+        Parameters
+        ----------
+        strategy : FrameGenerationStrategy
+            The strategy to use for generating frames.
+        """
         self.strategy = strategy
 
     def generate(
@@ -171,6 +193,16 @@ class MovieMaker:
     """
 
     def __init__(self, frame_generator: FrameGenerator, frame_dir: str):
+        """
+        Initializes the movie maker.
+
+        Parameters
+        ----------
+        frame_generator : FrameGenerator
+           The frame generator to use for creating frames.
+        frame_dir : str
+           Directory where the frames will be saved.
+        """
         self.frame_generator = frame_generator
         self.frame_dir = frame_dir
 
