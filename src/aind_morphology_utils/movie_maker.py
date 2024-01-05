@@ -175,31 +175,6 @@ class MovieMaker:
         os.makedirs(frame_dir, exist_ok=True)
 
     def write_frames(
-        self, coords: List[Tuple[int, int, int]], arr: zarr.core.Array
-    ):
-        """
-        Creates a movie by generating and saving frames.
-
-        Parameters
-        ----------
-        coords : List[Tuple[int, int, int]]
-            List of coordinates to generate frames.
-        arr : zarr.core.Array
-            The zarr array containing image data.
-        """
-        try:
-            for i, frame in tqdm(
-                enumerate(
-                    self.frame_generator.generate(coords, arr),
-                )
-            ):
-                frame_path = os.path.join(self.frame_dir, f"frame_{i:04d}.png")
-                imageio.imwrite(frame_path, frame)
-                logging.debug(f"Frame {i} saved")
-        except Exception as e:
-            logging.error(f"An error occurred: {e}")
-
-    def write_frames_parallel(
         self,
         coords: List[Tuple[int, int, int]] | np.ndarray,
         arr: zarr.core.Array,
@@ -406,13 +381,8 @@ def main():
     frame_generator = FrameGenerator(strategy)
     movie_maker = MovieMaker(frame_generator, config.frame_dir)
 
-    # t0 = time.time()
-    # movie_maker.write_frames(coords, ds)
-    # t1 = time.time()
-    # print(f"Serial processing took {t1 - t0} seconds")
-
     t0 = time.time()
-    movie_maker.write_frames_parallel(coords, ds, config.max_workers)
+    movie_maker.write_frames(coords, ds, config.max_workers)
     t1 = time.time()
     print(f"Parallel processing took {t1 - t0} seconds")
 
