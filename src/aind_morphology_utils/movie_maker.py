@@ -14,6 +14,7 @@ import xarray
 import zarr
 from pydantic import BaseModel, Field, ValidationError
 from scipy import interpolate
+from dask_image.ndinterp import affine_transform
 from skimage.exposure import rescale_intensity
 from tqdm import tqdm
 
@@ -55,6 +56,10 @@ class MovieConfig(BaseModel):
         default="mip",
         description="Frame generation strategy. Must be one of 'mip' or "
         "'spline'.",
+    )
+    smoothing: int = Field(
+        default=1000,
+        description="Smoothing for spline interpolation.",
     )
 
 
@@ -255,7 +260,7 @@ class InterpolatingGenerator(FrameGenerator):
     def __init__(
         self,
         frame_size: Tuple[int, int] = (512, 512),
-        interp_method: str = "cubic",
+        interp_method: str = "linear",
         vmin: int = 0,
         vmax: int = 1000,
     ):
@@ -283,7 +288,7 @@ class InterpolatingGenerator(FrameGenerator):
     def generate_frames(
         self,
         coords: List[Tuple[float, float, float]] | np.ndarray,
-        arr: xarray.DataArray,
+        arr: dask.array.Array,
     ) -> Generator[np.ndarray, None, None]:
         """
         Generates frames using spline interpolation strategy.
@@ -292,8 +297,8 @@ class InterpolatingGenerator(FrameGenerator):
         ----------
         coords : List[Tuple[float, float, float]]
             List of floating-point coordinates to generate frames.
-        arr : xarray.DataArray
-            The xarray DataArray containing image data.
+        arr : dask.array.Array
+            The dask Array containing image data.
 
         Yields
         ------
@@ -304,36 +309,107 @@ class InterpolatingGenerator(FrameGenerator):
         x_fine, y_fine, z_fine = zip(*coords)
 
         for x, y, z in zip(x_fine, y_fine, z_fine):
-            # Calculate the frame boundaries considering the frame size
-            y_bounds = max(0, y - self.frame_size[0] / 2), min(
-                arr.shape[3], y + self.frame_size[0] / 2
-            )
-            x_bounds = max(0, x - self.frame_size[1] / 2), min(
-                arr.shape[4], x + self.frame_size[1] / 2
-            )
-
-            frame = (
-                arr.interp(
-                    y=np.linspace(
-                        y_bounds[0], y_bounds[1], self.frame_size[0]
-                    ),
-                    x=np.linspace(
-                        x_bounds[0], x_bounds[1], self.frame_size[1]
-                    ),
-                    z=z,
-                    method=self.interp_method,
-                )
-                .squeeze()
-                .compute()
+            frame = self._get_frame_dask(
+                arr,
+                (z, y, x),
+                self.frame_size,
             )
 
             rescaled_frame = rescale_intensity(
-                frame.values,
+                frame,
                 in_range=(self.vmin, self.vmax),
                 out_range=np.uint16,
             )
 
             yield rescaled_frame
+
+    def _get_frame_xarray(
+        self,
+        arr: xarray.DataArray,
+        center: Tuple[float, float, float],
+        frame_size: Tuple[int, int],
+    ):
+        """
+        Extract a 2D plane from a 5D volume using xarray interpolation.
+
+        Parameters
+        ----------
+        arr : xarray.DataArray
+            The 5D image volume as a xarray DataArray (t, c, z, y, x).
+        center : tuple
+            The (z, y, x) coordinates of the center of the 2D plane.
+        frame_size : tuple
+            The dimensions (height, width) of the output plane.
+
+        Returns
+        -------
+        np.ndarray
+            Extracted 2D plane as a numpy array.
+
+        """
+        # Calculate the frame boundaries considering the frame size
+        y_bounds = max(0, center[1] - frame_size[0] / 2), min(
+            arr.shape[3], center[1] + frame_size[0] / 2
+        )
+        x_bounds = max(0, center[2] - frame_size[1] / 2), min(
+            arr.shape[4], center[2] + frame_size[1] / 2
+        )
+
+        frame = (
+            arr.interp(
+                y=np.linspace(y_bounds[0], y_bounds[1], frame_size[0]),
+                x=np.linspace(x_bounds[0], x_bounds[1], frame_size[1]),
+                z=center[0],
+                method=self.interp_method,
+            )
+            .squeeze()
+            .compute()
+        )
+        return frame
+
+    def _get_frame_dask(
+        self,
+        arr: dask.array.Array,
+        center: Tuple[float, float, float],
+        frame_size: Tuple[int, int],
+    ):
+        """
+        Extract a 2D plane from a 5D volume using dask.
+
+        Parameters
+        ----------
+        arr : (dask.array.Array)
+            The 5D image volume as a Dask array (t, c, z, y, x).
+        center : (tuple)
+            The (z, y, x) coordinates of the center of the 2D plane.
+        frame_size : (tuple)
+            The dimensions (height, width) of the output plane.
+
+        Returns
+        -------
+        np.ndarray: Extracted 2D plane as a numpy array.
+        """
+        # Create a 5x5 identity matrix for the affine transformation
+        matrix = np.eye(5)
+
+        # Calculate the offset to position the center of the output frame
+        # at the specified coordinates
+        z_offset = center[0]
+        y_offset = center[1] - frame_size[1] / 2
+        x_offset = center[2] - frame_size[1] / 2
+        translation = [0, 0, z_offset, y_offset, x_offset]
+
+        # Apply the affine transformation
+        transformed = affine_transform(
+            arr,
+            matrix=matrix,
+            offset=translation,
+            output_shape=(1, 1, 1, *frame_size),
+            output_chunks=(1, 1, 1, *frame_size),
+            order=1,
+        )
+
+        return transformed.squeeze().compute()
 
 
 class MovieMaker:
@@ -530,6 +606,12 @@ def main():
         help="Maximum number of workers for parallel processing.",
     )
     parser.add_argument(
+        "--smoothing",
+        type=int,
+        default=1000,
+        help="Smoothing for spline interpolation.",
+    )
+    parser.add_argument(
         "--cache_size",
         type=int,
         default=1024**3,
@@ -557,6 +639,7 @@ def main():
             max_workers=args.max_workers,
             cache_size=args.cache_size,
             frame_generator=args.generator,
+            smoothing=args.smoothing,
         )
     except ValidationError as e:
         logging.error(f"Configuration validation error: {e}")
@@ -569,13 +652,15 @@ def main():
     coords = list(_swc_to_coords(config.swc_path))
     if config.n_frames == -1:
         config.n_frames = len(coords)
-    coords = coords[:config.n_frames]
+    coords = np.array(coords[: config.n_frames])
 
     if config.frame_generator == "spline":
         # TODO: no hardcode
-        fitter = SplineFitter(k=3, resolution_scale=10, smoothing=200)
+        fitter = SplineFitter(
+            k=3, resolution_scale=10, smoothing=config.smoothing
+        )
         fitter.fit(coords)
-        frame_step_size = 1.0  # decrease for coarser (faster) sampling
+        frame_step_size = 1.0  # increase for coarser (faster) sampling
         coords = fitter.sample(step_size=frame_step_size)[: config.n_frames]
 
         frame_generator = InterpolatingGenerator(
@@ -589,8 +674,6 @@ def main():
         # down the interpolation, but our zarr data is not directly readable
         # by xarray.
         ds = dask.array.from_array(ds, chunks=ds.chunks)
-        ds = xarray.DataArray(ds, dims=["t", "c", "z", "y", "x"])
-        # ds = xarray.open_zarr(ds.store, chunks=None, consolidated=False)
 
     elif config.frame_generator == "mip":
         frame_generator = MIPGenerator(

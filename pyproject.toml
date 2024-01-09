@@ -28,6 +28,9 @@ dependencies = [
     "imageio",
     "pydantic",
     "xarray",
+    "dask_image",
+    "dask",
+    "distributed",
 ]
 
 [project.optional-dependencies]
