@@ -27,6 +27,7 @@ dependencies = [
     "ome-zarr",
     "imageio",
     "pydantic",
+    "xarray",
 ]
 
 [project.optional-dependencies]

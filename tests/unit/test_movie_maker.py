@@ -6,8 +6,7 @@ import zarr
 
 from aind_morphology_utils.movie_maker import (
     MovieConfig,
-    FrameGenerationStrategy,
-    MaxIntensityProjectionStrategy,
+    MIPGenerator,
     FrameGenerator,
     MovieMaker,
 )
@@ -35,16 +34,9 @@ class TestMovieConfig(unittest.TestCase):
         self.assertEqual(config.vmax, 1000)
 
 
-class TestFrameGenerationStrategy(unittest.TestCase):
-    def test_generate_frames(self):
-        strategy = FrameGenerationStrategy()
-        with self.assertRaises(NotImplementedError):
-            list(strategy.generate_frames([], None))
-
-
 class TestMaxIntensityProjectionStrategy(unittest.TestCase):
     def test_generate_frames(self):
-        strategy = MaxIntensityProjectionStrategy(frame_size=(128, 128))
+        strategy = MIPGenerator(frame_size=(128, 128))
         coords = [(100, 100, 10)]
         arr = zarr.array(np.random.rand(1, 1, 20, 512, 512))
         frames = list(strategy.generate_frames(coords, arr))
@@ -54,7 +46,7 @@ class TestMaxIntensityProjectionStrategy(unittest.TestCase):
 
 class TestFrameGenerator(unittest.TestCase):
     def test_generate(self):
-        strategy = MaxIntensityProjectionStrategy(
+        strategy = MIPGenerator(
             mip_size=1, frame_size=(64, 64), vmin=0, vmax=100
         )
         generator = FrameGenerator(strategy)

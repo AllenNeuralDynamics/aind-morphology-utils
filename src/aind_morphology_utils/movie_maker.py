@@ -2,15 +2,18 @@ import argparse
 import logging
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from typing import Generator, Tuple, List, Optional
 
+import dask.array
 import imageio
 import networkx as nx
 import numpy as np
 import s3fs
+import xarray
 import zarr
 from pydantic import BaseModel, Field, ValidationError
+from scipy import interpolate
 from skimage.exposure import rescale_intensity
 from tqdm import tqdm
 
@@ -48,13 +51,116 @@ class MovieConfig(BaseModel):
         default=1024**3,
         description="Maximum size of the Zarr cache. Defaults to 1GB.",
     )
+    frame_generator: str = Field(
+        default="mip",
+        description="Frame generation strategy. Must be one of 'mip' or "
+        "'spline'.",
+    )
 
 
-class FrameGenerationStrategy:
+class SplineFitter:
+    def __init__(self, k=3, resolution_scale=10, smoothing=200):
+        self.resolution_scale = resolution_scale
+        self.smoothing = smoothing
+        self.k = k
+        self._tck = None
+
+    def fit(self, coords: List[Tuple[float, float, float]]) -> None:
+        """
+        Fit the spline to the given coordinates.
+
+        Parameters
+        ----------
+        coords : List[Tuple[float, float, float]]
+            The coordinates to fit the spline.
+        """
+        x, y, z = zip(*coords)
+        self._tck, _ = interpolate.splprep(
+            [x, y, z], k=self.k, s=self.smoothing
+        )
+        self.spline_length = self._spline_len(
+            coords, self._tck, self.resolution_scale
+        )
+
+    def query(self, u: np.ndarray) -> np.ndarray:
+        """
+        Query the spline at given positions.
+
+        Parameters
+        ----------
+        u : np.ndarray
+            The positions along the spline to query.
+
+        Returns
+        -------
+        np.ndarray
+            The resampled coordinates.
+        """
+        x_fine, y_fine, z_fine = interpolate.splev(u, self._tck)
+        resampled_coords = np.array(list(zip(x_fine, y_fine, z_fine)))
+        return resampled_coords
+
+    def sample(self, step_size: float = 1.0) -> np.ndarray:
+        """
+        Sample the spline at a specified step size.
+
+        Parameters
+        ----------
+        step_size : float
+            The step size for sampling.
+
+        Returns
+        -------
+        np.ndarray
+            The sampled coordinates.
+        """
+        # Determine the number of samples for your desired spacing
+        num_samples = int(np.ceil(self.spline_length / step_size))
+        return self.query(np.linspace(0, 1, num_samples))
+
+    def _spline_len(
+        self,
+        coords: List[Tuple[float, float, float]],
+        tck: Tuple,
+        resolution_scale: int = 10,
+    ):
+        """
+        Calculate the total length of the spline path in a vectorized manner.
+
+        Parameters
+        ----------
+        coords : List[Tuple[float, float, float]]
+            List of coordinates.
+        tck : Tuple
+            Spline representation obtained from scipy.interpolate.splprep.
+        resolution_scale : int
+            Scale factor to determine the resolution of the spline
+            approximation.
+            Increase this value to improve accuracy.
+
+        Returns
+        -------
+        float
+            Total length of the spline.
+        """
+        u = np.linspace(0, 1, len(coords) * resolution_scale)
+        x, y, z = interpolate.splev(u, tck)
+
+        distances = np.sqrt(
+            np.diff(x) ** 2 + np.diff(y) ** 2 + np.diff(z) ** 2
+        )
+        spline_length = np.sum(distances)
+
+        return spline_length
+
+
+class FrameGenerator:
     """Abstract class defining the protocol for frame generation strategies."""
 
     def generate_frames(
-        self, coords: List[Tuple[int, int, int]], arr: zarr.core.Array
+        self,
+        coords: List[Tuple[int, int, int]] | np.ndarray,
+        arr: zarr.core.Array,
     ) -> Generator[np.ndarray, None, None]:
         """
         Abstract method to be implemented for generating frames.
@@ -74,9 +180,9 @@ class FrameGenerationStrategy:
         raise NotImplementedError
 
 
-class MaxIntensityProjectionStrategy(FrameGenerationStrategy):
+class MIPGenerator(FrameGenerator):
     """
-    Strategy for generating frames using Maximum Intensity Projection.
+    Strategy for generating frames using Maximum Intensity Projections.
     """
 
     def __init__(
@@ -107,7 +213,9 @@ class MaxIntensityProjectionStrategy(FrameGenerationStrategy):
         self.vmax = vmax
 
     def generate_frames(
-        self, coords: List[Tuple[int, int, int]], arr: zarr.core.Array
+        self,
+        coords: List[Tuple[int, int, int]] | np.ndarray,
+        arr: zarr.core.Array,
     ) -> Generator[np.ndarray, None, None]:
         """
         Generates frames using the Maximum Intensity Projection strategy.
@@ -143,48 +251,89 @@ class MaxIntensityProjectionStrategy(FrameGenerationStrategy):
             yield rescaled_frame
 
 
-class SplineInterpolationStrategy(FrameGenerationStrategy):
-    # TODO
-    pass
-
-
-class FrameGenerator:
-    """
-    Generates frames using a specified frame generation strategy.
-    """
-
-    def __init__(self, strategy: FrameGenerationStrategy):
+class InterpolatingGenerator(FrameGenerator):
+    def __init__(
+        self,
+        frame_size: Tuple[int, int] = (512, 512),
+        interp_method: str = "cubic",
+        vmin: int = 0,
+        vmax: int = 1000,
+    ):
         """
-        Initializes the frame generator with a given strategy.
+        Initializes the interpolating frame generation strategy. This strategy
+        allows for the generation of frames at non-integral coordinates.
 
         Parameters
         ----------
-        strategy : FrameGenerationStrategy
-            The strategy to use for generating frames.
+        frame_size : Tuple[int, int]
+            Size of the frame to be generated (width, height).
+        interp_method : str
+            Interpolation method to use. Must be one of "linear", "nearest",
+            "zero", "slinear", "quadratic", "cubic", "previous", "next".
+        vmin : int
+            Minimum intensity value for rescaling.
+        vmax : int
+            Maximum intensity value for rescaling.
         """
-        self.strategy = strategy
+        self.frame_size = frame_size
+        self.interp_method = interp_method
+        self.vmin = vmin
+        self.vmax = vmax
 
-    def generate(
+    def generate_frames(
         self,
-        coords: List[Tuple[int, int, int]] | np.ndarray,
-        arr: zarr.core.Array,
+        coords: List[Tuple[float, float, float]] | np.ndarray,
+        arr: xarray.DataArray,
     ) -> Generator[np.ndarray, None, None]:
         """
-        Generates frames based on the provided strategy.
+        Generates frames using spline interpolation strategy.
 
         Parameters
         ----------
-        coords : List[Tuple[int, int, int]]
-            List of coordinates to generate frames.
-        arr : zarr.core.Array
-            The zarr array containing image data.
+        coords : List[Tuple[float, float, float]]
+            List of floating-point coordinates to generate frames.
+        arr : xarray.DataArray
+            The xarray DataArray containing image data.
 
         Yields
         ------
         Generator[np.ndarray, None, None]
-            A generator yielding frames as numpy arrays.
+            A generator yielding processed frames as numpy arrays.
         """
-        return self.strategy.generate_frames(coords, arr)
+
+        x_fine, y_fine, z_fine = zip(*coords)
+
+        for x, y, z in zip(x_fine, y_fine, z_fine):
+            # Calculate the frame boundaries considering the frame size
+            y_bounds = max(0, y - self.frame_size[0] / 2), min(
+                arr.shape[3], y + self.frame_size[0] / 2
+            )
+            x_bounds = max(0, x - self.frame_size[1] / 2), min(
+                arr.shape[4], x + self.frame_size[1] / 2
+            )
+
+            frame = (
+                arr.interp(
+                    y=np.linspace(
+                        y_bounds[0], y_bounds[1], self.frame_size[0]
+                    ),
+                    x=np.linspace(
+                        x_bounds[0], x_bounds[1], self.frame_size[1]
+                    ),
+                    z=z,
+                    method=self.interp_method,
+                )
+                .squeeze()
+                .compute()
+            )
+
+            rescaled_frame = rescale_intensity(
+                frame.values,
+                in_range=(self.vmin, self.vmax),
+                out_range=np.uint16,
+            )
+
+            yield rescaled_frame
 
 
 class MovieMaker:
@@ -228,7 +377,7 @@ class MovieMaker:
         """
         chunks = np.array_split(coords, max_workers or os.cpu_count())
 
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
             futures = []
             start_idx = 0
             for chunk in chunks:
@@ -241,37 +390,37 @@ class MovieMaker:
                 try:
                     future.result()
                 except Exception as e:
-                    logging.error(f"Error processing chunk: {e}")
+                    logging.exception(f"Error processing chunk: {e}")
 
     def _process_chunk(
         self,
-        chunk: List[Tuple[int, int, int]] | np.ndarray,
+        chunk: np.ndarray,
         arr: zarr.core.Array,
         start_idx: int,
-    ):
+    ) -> None:
         """
-        Processes a chunk of coordinates, generating and saving frames.
+        Processes a given chunk of coordinates, generating and saving frames.
 
         Parameters
         ----------
-        chunk : List[Tuple[int, int, int] or np.ndarray
+        chunk : np.ndarray
             A chunk of coordinates to process.
         arr : zarr.core.Array
             The zarr array containing image data.
         start_idx : int
-            The starting index of this chunk in the original list of coordinates.
+            The starting index for frame naming in this chunk.
         """
         for i, frame in enumerate(
-            self.frame_generator.generate(chunk, arr), start=start_idx
+            self.frame_generator.generate_frames(chunk, arr), start=start_idx
         ):
-            frame_path = os.path.join(self.frame_dir, f"frame_{i:04d}.png")
+            frame_path = os.path.join(self.frame_dir, f"frame_{i:05d}.png")
             imageio.imwrite(frame_path, frame)
             logging.debug(f"Frame {i} saved")
 
 
 def _swc_to_coords(
     swc_path: str,
-) -> Generator[Tuple[int, int, int], None, None]:
+) -> np.ndarray:
     """
     Generate coordinates from an SWC file.
 
@@ -280,24 +429,29 @@ def _swc_to_coords(
     swc_path : str
         The path to the SWC file.
 
-    Yields
+    Returns
     ------
-    Generator[Tuple[int, int, int], None, None]
-        A generator yielding coordinates as tuples (x, y, z).
+    np.ndarray
+        A numpy array of coordinates.
     """
     graph = NeuronGraph.from_swc(swc_path)
     longest_path = nx.dag_longest_path(graph)
+    coords = []
     for node in longest_path:
         n = graph.nodes[node]
-        yield int(n["x"]), int(n["y"]), int(n["z"])
+        coords.append([int(n["x"]), int(n["y"]), int(n["z"])])
+    # remove duplicate nodes
+    coords = np.array(coords)
+    _, ind = np.unique(coords, axis=0, return_index=True)
+    # Maintain input order
+    return coords[np.sort(ind)]
 
 
-def _open_zarr(
+def _open_zarr_s3(
     zarr_path: str,
-    dataset: str,
     client_kwargs: Optional[dict] = None,
     max_cache_size: int = 1024**3,
-) -> zarr.core.Array:
+) -> zarr.Group:
     """
     Load zarr dataset.
 
@@ -305,8 +459,6 @@ def _open_zarr(
     ----------
     zarr_path : str
         Path to the zarr dataset.
-    dataset : str
-        Name of the dataset to load.
     client_kwargs : Optional[dict], optional
         Additional keyword arguments for the S3 client.
     max_cache_size : int, optional
@@ -314,13 +466,13 @@ def _open_zarr(
 
     Returns
     -------
-    zarr.core.Array
-        The loaded zarr array.
+    zarr.Group
+        The loaded zarr group.
     """
     s3 = s3fs.S3FileSystem(anon=False, client_kwargs=client_kwargs)
     store = s3fs.S3Map(root=zarr_path, s3=s3, check=False)
     cache = zarr.LRUStoreCache(store, max_size=max_cache_size)
-    return zarr.group(store=cache, overwrite=False)[dataset]
+    return zarr.group(store=cache, overwrite=False)
 
 
 def main():
@@ -383,6 +535,9 @@ def main():
         default=1024**3,
         help="Maximum size of the Zarr cache. Defaults to 1GB.",
     )
+    parser.add_argument(
+        "--generator", default="mip", help="Frame generation strategy."
+    )
     parser.add_argument("--log_level", default="INFO", help="Logging level.")
 
     args = parser.parse_args()
@@ -401,6 +556,7 @@ def main():
             swc_path=args.swc_path,
             max_workers=args.max_workers,
             cache_size=args.cache_size,
+            frame_generator=args.generator,
         )
     except ValidationError as e:
         logging.error(f"Configuration validation error: {e}")
@@ -408,24 +564,50 @@ def main():
 
     logging.basicConfig(level=args.log_level)
 
-    # Load data and coordinates
-    ds = _open_zarr(config.zarr_path, "0", max_cache_size=config.cache_size)
+    ds = _open_zarr_s3(config.zarr_path, max_cache_size=config.cache_size)["0"]
 
+    coords = list(_swc_to_coords(config.swc_path))
     if config.n_frames == -1:
-        config.n_frames = len(list(_swc_to_coords(config.swc_path)))
-    coords = list(_swc_to_coords(config.swc_path))[: config.n_frames]
+        config.n_frames = len(coords)
+    coords = coords[:config.n_frames]
 
-    # Setup FrameGenerator and MovieMaker
-    strategy = MaxIntensityProjectionStrategy(
-        config.mip_size, config.frame_size, config.vmin, config.vmax
-    )
-    frame_generator = FrameGenerator(strategy)
+    if config.frame_generator == "spline":
+        # TODO: no hardcode
+        fitter = SplineFitter(k=3, resolution_scale=10, smoothing=200)
+        fitter.fit(coords)
+        frame_step_size = 1.0  # decrease for coarser (faster) sampling
+        coords = fitter.sample(step_size=frame_step_size)[: config.n_frames]
+
+        frame_generator = InterpolatingGenerator(
+            config.frame_size,
+            interp_method="linear",
+            vmin=config.vmin,
+            vmax=config.vmax,
+        )
+
+        # I'm convinced wrapping with a dask array is drastically slowing
+        # down the interpolation, but our zarr data is not directly readable
+        # by xarray.
+        ds = dask.array.from_array(ds, chunks=ds.chunks)
+        ds = xarray.DataArray(ds, dims=["t", "c", "z", "y", "x"])
+        # ds = xarray.open_zarr(ds.store, chunks=None, consolidated=False)
+
+    elif config.frame_generator == "mip":
+        frame_generator = MIPGenerator(
+            config.mip_size, config.frame_size, config.vmin, config.vmax
+        )
+
+    else:
+        raise ValueError(
+            f"Invalid frame generation strategy: {config.frame_generator}"
+        )
+
     movie_maker = MovieMaker(frame_generator, config.frame_dir)
 
     t0 = time.time()
     movie_maker.write_frames(coords, ds, config.max_workers)
     t1 = time.time()
-    print(f"Parallel processing took {t1 - t0} seconds")
+    logging.info(f"Parallel processing took {t1 - t0} seconds")
 
 
 if __name__ == "__main__":
