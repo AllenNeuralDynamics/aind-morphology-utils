@@ -9,7 +9,7 @@ from aind_morphology_utils.ccf_annotation import CCFMorphologyMapper
 from aind_morphology_utils.coordinate_mapping import OMEZarrTransform
 from aind_morphology_utils.utils import read_swc
 from aind_morphology_utils.writers import MouseLightJsonWriter
-from merge_tracings import merge_swcs_in_folder
+from aind_morphology_utils.scripts.merge_tracings import merge_swcs_in_folder
 
 
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
