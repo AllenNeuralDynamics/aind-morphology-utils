@@ -107,6 +107,54 @@ class AntsTransform:
             node["z"] = scaled_warp_pt[2]
 
         return morph_copy
+    
+    def inverse_transform(self, morph: Morphology) -> Morphology:
+        """
+        Inverse Transform the given Morphology from CCF space to imaging space.
+
+        Parameters
+        ----------
+        morph: Morphology
+            the morphology object.
+
+        Returns
+        -------
+        allensdk.core.swc.Morphology
+            The transformed Morphology object.
+        """
+
+        #Invert the entire procedure.
+        _LOGGER.info("# points: " + str(len(morph.compartment_list)))
+
+        scale = [
+            raw / trans
+            for trans, raw in zip(self.transform_res, self.input_res)
+        ]
+
+        morph_copy = deepcopy(
+            morph
+        )  # TODO: build new Morphology from scratch instead of deep copying
+        for node in morph_copy.compartment_list:
+            
+            scaled_warp_pt = [ node["x"] , node["y"], node["z"] ]
+            warp_pt = [dim / scale for dim, scale in zip(scaled_warp_pt, self.transform_res)]
+            
+            if self.warptx is None:
+                affine_pt = warp_pt
+            else:
+                #invert warp field
+                affine_pt = self.warptx.invert.apply_to_point(warp_pt)
+
+            scaled_pt = self.affinetx.invert.apply_to_point(affine_pt)
+            pt = [dim / scale for dim, scale in zip(pt, scale)]
+            pt = flip_pt(pt, [self.sx, self.sy, self.sz], self.flip_axes)
+            pt = pt* np.array(self.swc_scale)
+
+            node["x"] = pt[0]
+            node["y"] = pt[1]
+            node["z"] = pt[2]
+
+        return morph_copy
 
 
 class OMEZarrTransform:
