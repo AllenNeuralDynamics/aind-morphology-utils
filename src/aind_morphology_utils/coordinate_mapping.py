@@ -143,9 +143,9 @@ class AntsTransform:
                 affine_pt = warp_pt
             else:
                 #invert warp field
-                affine_pt = self.warptx.invert.apply_to_point(warp_pt)
+                affine_pt = self.warptx.invert().apply_to_point(warp_pt)
 
-            scaled_pt = self.affinetx.invert.apply_to_point(affine_pt)
+            scaled_pt = self.affinetx.invert().apply_to_point(affine_pt)
             pt = [dim / scale for dim, scale in zip(pt, scale)]
             pt = flip_pt(pt, [self.sx, self.sy, self.sz], self.flip_axes)
             pt = pt* np.array(self.swc_scale)
