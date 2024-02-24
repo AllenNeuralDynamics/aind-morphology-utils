@@ -49,9 +49,10 @@ class AntsTransform:
         flip_axes: List[bool],
         input_scale: int,
         affine_only: bool = False,
+        read_inverse_warp: bool = False,
     ):
         self.affinetx, self.warptx = read_registration_transform(
-            registration_folder, affine_only
+            registration_folder, affine_only , read_inverse_warp,
         )
         self.sx, self.sy, self.sz = get_voxel_size_image(
             image_path, input_scale
