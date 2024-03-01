@@ -31,6 +31,35 @@ class NeuronGraph(nx.DiGraph):
         self.offset = [0.0, 0.0, 0.0]  # X Y Z
 
     @classmethod
+    def from_allensdk_morphology(cls, morphology)-> "NeuronGraph":
+        """
+        Load an an allensdk morphology object into a NeuronGraph.
+        """
+        graph = cls()  # Instantiate a new NeuronGraph object
+
+        for compartment in morphology.compartment_list:
+            node_id = compartment['id']
+            struct_type = compartment['type']
+            x = compartment['x']
+            y = compartment['y']
+            z = compartment['z']
+            radius = compartment['radius']
+            parent_id = compartment['parent']
+            graph.add_node(
+                            node_id,
+                            struct_type=struct_type,
+                            x=x,
+                            y=y,
+                            z=z,
+                            radius=radius,
+                        )
+            if parent_id != -1:
+                graph.add_edge(parent_id, node_id)
+
+            return graph
+
+
+    @classmethod
     def from_swc(cls, swc_file_path: str) -> "NeuronGraph":
         """
         Load an SWC file into a NeuronGraph.
