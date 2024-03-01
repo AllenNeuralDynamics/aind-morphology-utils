@@ -37,6 +37,7 @@ class NeuronGraph(nx.DiGraph):
         """
         graph = cls()  # Instantiate a new NeuronGraph object
 
+        print("Now starting this....")
         for compartment in morphology.compartment_list:
             print(compartment)
             node_id = compartment['id']
