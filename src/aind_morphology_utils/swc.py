@@ -38,6 +38,7 @@ class NeuronGraph(nx.DiGraph):
         graph = cls()  # Instantiate a new NeuronGraph object
 
         for compartment in morphology.compartment_list:
+            print(compartment)
             node_id = compartment['id']
             struct_type = compartment['type']
             x = compartment['x']
@@ -45,16 +46,22 @@ class NeuronGraph(nx.DiGraph):
             z = compartment['z']
             radius = compartment['radius']
             parent_id = compartment['parent']
-            graph.add_node(
-                            node_id,
-                            struct_type=struct_type,
-                            x=x,
-                            y=y,
-                            z=z,
-                            radius=radius,
-                        )
-            if parent_id != -1:
-                graph.add_edge(parent_id, node_id)
+            try:
+                graph.add_node(
+                                node_id,
+                                struct_type=struct_type,
+                                x=x,
+                                y=y,
+                                z=z,
+                                radius=radius,
+                            )
+            except:
+                print("couldn't add node")
+            try:
+                if parent_id != -1:
+                    graph.add_edge(parent_id, node_id)
+            except:
+                print("Couldn't add edge!!!")
 
             return graph
 
