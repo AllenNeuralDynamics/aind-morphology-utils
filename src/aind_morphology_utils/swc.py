@@ -59,6 +59,9 @@ class NeuronGraph(nx.DiGraph):
                             )
             except:
                 print("couldn't add node")
+        for compartment in morphology.compartment_list:
+            node_id = compartment['id']
+            parent_id = compartment['parent']
             try:
                 if parent_id != -1:
                     graph.add_edge(parent_id, node_id)
