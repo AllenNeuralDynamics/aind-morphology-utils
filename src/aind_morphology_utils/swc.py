@@ -64,7 +64,7 @@ class NeuronGraph(nx.DiGraph):
             except:
                 print("Couldn't add edge!!!")
 
-            return graph
+        return graph
 
 
     @classmethod
