@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Dict
 
 import networkx as nx
+from allensdk.core.swc import Morphology
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ class NeuronGraph(nx.DiGraph):
         self.offset = [0.0, 0.0, 0.0]  # X Y Z
 
     @classmethod
-    def from_allensdk_morphology(cls, morphology)-> "NeuronGraph":
+    def from_allensdk_morphology(cls, morphology: Morphology)-> "NeuronGraph":
         """
         Load an an allensdk morphology object into a NeuronGraph.
         """
