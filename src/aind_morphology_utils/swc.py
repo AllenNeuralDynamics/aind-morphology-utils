@@ -40,7 +40,6 @@ class NeuronGraph(nx.DiGraph):
 
         print("Now starting this....")
         for compartment in morphology.compartment_list:
-            print(compartment)
             node_id = compartment['id']
             struct_type = compartment['type']
             x = compartment['x']
@@ -48,7 +47,8 @@ class NeuronGraph(nx.DiGraph):
             z = compartment['z']
             radius = compartment['radius']
             parent_id = compartment['parent']
-            try:
+            
+            if 1==1:
                 graph.add_node(
                                 node_id,
                                 struct_type=struct_type,
@@ -57,17 +57,17 @@ class NeuronGraph(nx.DiGraph):
                                 z=z,
                                 radius=radius,
                             )
-            except:
-                print("couldn't add node")
-        for compartment in morphology.compartment_list:
+            
+        '''for compartment in morphology.compartment_list:
             node_id = compartment['id']
             parent_id = compartment['parent']
-            try:
+            #try:
+            if 1==1:
                 if parent_id != -1:
                     graph.add_edge(parent_id, node_id)
-            except:
-                print("Couldn't add edge!!!")
-
+            #except:
+            #    print("Couldn't add edge!!!")
+        '''
         return graph
 
 
