@@ -31,7 +31,7 @@ class NeuronGraph(nx.DiGraph):
         super().__init__()
         self.offset = [0.0, 0.0, 0.0]  # X Y Z
 
-    @classmethod
+    
     def from_allensdk_morphology1(cls, morphology: Morphology)-> "NeuronGraph":
         """
         Load an an allensdk morphology object into a NeuronGraph.
