@@ -32,11 +32,11 @@ class NeuronGraph(nx.DiGraph):
         self.offset = [0.0, 0.0, 0.0]  # X Y Z
 
     
-    def from_allensdk_morphology1(cls, morphology: Morphology)-> "NeuronGraph":
+    def from_allensdk_morphology(cls, morphology: Morphology)-> "NeuronGraph":
         """
         Load an an allensdk morphology object into a NeuronGraph.
         """
-        graph = cls()  # Instantiate a new NeuronGraph object
+        #graph = cls()  # Instantiate a new NeuronGraph object
 
         print("Now starting this....")
         for compartment in morphology.compartment_list[2:]:
@@ -49,7 +49,7 @@ class NeuronGraph(nx.DiGraph):
             parent_id = compartment['parent']
             
             if 1==1:
-                graph.add_node(
+                self.add_node(
                                 node_id,
                                 struct_type=struct_type,
                                 x=x,
@@ -68,7 +68,7 @@ class NeuronGraph(nx.DiGraph):
             #except:
             #    print("Couldn't add edge!!!")
         '''
-        return graph
+        #return graph
 
 
     @classmethod
