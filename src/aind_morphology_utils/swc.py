@@ -39,7 +39,7 @@ class NeuronGraph(nx.DiGraph):
         #graph = cls()  # Instantiate a new NeuronGraph object
 
         print("Now starting this....")
-        for compartment in morphology.compartment_list[2:]:
+        for compartment in morphology.compartment_list:
             node_id = compartment['id']
             struct_type = compartment['type']
             x = compartment['x']
