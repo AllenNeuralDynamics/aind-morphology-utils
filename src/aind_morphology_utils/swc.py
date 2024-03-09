@@ -207,7 +207,7 @@ class NeuronGraph(nx.DiGraph):
         """
         try:
             lines = []
-            for node in sorted(self.nodes(), key="parent_id"):
+            for node in sorted(self.nodes()):
                 attrs = self.nodes[node]
                 try:
                     x, y, z, radius, struct_type = (
