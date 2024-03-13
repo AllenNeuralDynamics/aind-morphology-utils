@@ -215,7 +215,7 @@ class NeuronGraph(nx.DiGraph):
                 nodelist.append(node)
 
             if sort_by_parentid:
-                nodelist.sort(key=lambda s: s['parent_id'])
+                nodelist.sort(key=lambda s: s['node_id'])
                 print("sorted")
 
             #populate lines
