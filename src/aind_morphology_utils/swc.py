@@ -216,6 +216,7 @@ class NeuronGraph(nx.DiGraph):
 
             if sort_by_parentid:
                 nodelist.sort(key=lambda s: s['parent_id'])
+                print("sorted")
 
             #populate lines
             lines = []
