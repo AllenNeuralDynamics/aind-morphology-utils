@@ -210,6 +210,7 @@ class NeuronGraph(nx.DiGraph):
             nodelist = []
             for nodeid in self.nodes:
                 node = self.nodes[nodeid]
+                node['node_id'] = nodeid
                 node['parent_id'] = next(iter(self.predecessors(nodeid)), -1)
                 nodelist.append(node)
 
@@ -220,9 +221,9 @@ class NeuronGraph(nx.DiGraph):
             lines = []
             for attrs in nodelist:
                 try:
-                    x, y, z, radius, struct_type, parent_id = (
+                    node, x, y, z, radius, struct_type, parent_id = (
                         attrs[attr]
-                        for attr in ["x", "y", "z", "radius", "struct_type", "parent_id"]
+                        for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
                     )
                 except KeyError as e:
                     raise KeyError(
