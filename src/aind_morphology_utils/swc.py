@@ -220,7 +220,7 @@ class NeuronGraph(nx.DiGraph):
             lines = []
             for attrs in nodelist:
                 try:
-                    x, y, z, radius, struct_type = (
+                    x, y, z, radius, struct_type, parent_id = (
                         attrs[attr]
                         for attr in ["x", "y", "z", "radius", "struct_type", "parent_id"]
                     )
