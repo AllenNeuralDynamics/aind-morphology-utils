@@ -189,7 +189,7 @@ class NeuronGraph(nx.DiGraph):
         for node in self.nodes():
             self.nodes[node]["struct_type"] = structure_type
 
-    def save_swc(self, swc_path: str) -> None:
+    def save_swc(self, swc_path: str, sort_by_parentid = True) -> None:
         """
         Save the graph as an SWC file.
 
@@ -206,7 +206,37 @@ class NeuronGraph(nx.DiGraph):
             If required node attributes are missing.
         """
         try:
+            #node list with parent id added
+            nodelist = []
+            for nodeid in self.nodes:
+                node = self.nodes[nodeid]
+                node['parent_id'] = next(iter(self.predecessors(nodeid)), -1)
+                nodelist.append(node)
+
+            if sort_by_parentid:
+                nodelist.sort(key=lambda s: s['parent_id'])
+
+            #populate lines
             lines = []
+            for attrs in nodelist:
+                try:
+                    x, y, z, radius, struct_type = (
+                        attrs[attr]
+                        for attr in ["x", "y", "z", "radius", "struct_type", "parent_id"]
+                    )
+                except KeyError as e:
+                    raise KeyError(
+                        f"Missing required attribute {e} for node"
+                    )
+
+                lines.append(
+                    f"{int(node)} {int(struct_type)} {float(x)} {float(y)} {float(z)} {float(radius)} {int(parent_id)}\n"
+                )
+
+            with open(swc_path, "w") as file:
+                file.writelines(lines)
+
+            '''lines = []
             for node in sorted(self.nodes()):
                 attrs = self.nodes[node]
                 try:
@@ -225,7 +255,7 @@ class NeuronGraph(nx.DiGraph):
                 )
 
             with open(swc_path, "w") as file:
-                file.writelines(lines)
+                file.writelines(lines)'''
 
         except IOError as e:
             _LOGGER.error(f"Error saving file {swc_path}: {e}")
