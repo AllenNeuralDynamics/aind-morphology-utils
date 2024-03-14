@@ -226,6 +226,7 @@ class NeuronGraph(nx.DiGraph):
             If required node attributes are missing.
         """
         try:
+            print(self.nodes[0].keys())
             mydict = {}
             for i in range(len(self.nodes)):
                 mydict[self.nodes[i]['node_id']] = self.nodes[i]
