@@ -228,7 +228,7 @@ class NeuronGraph(nx.DiGraph):
         try:
             mydict = {}
             for i in range(len(self.nodes)):
-                mydict[self.nodes[i]['nodeid']] = self.nodes[i]
+                mydict[self.nodes[i]['node_id']] = self.nodes[i]
             lines = []
             newlines = get_lines(self.nodes[0],mydict, lines)
             '''#node list with parent id added
