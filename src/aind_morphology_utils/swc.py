@@ -189,6 +189,26 @@ class NeuronGraph(nx.DiGraph):
         for node in self.nodes():
             self.nodes[node]["struct_type"] = structure_type
 
+    def get_lines(node, mydict, lines):
+        if node['parent_id'] == -1:
+            nodeid, x, y, z, radius, struct_type, parent_id = (
+                            node[attr]
+                            for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
+                        )
+        else:
+            get_lines(mydict[node['parent_id']], mydict, lines)
+            nodeid, x, y, z, radius, struct_type, parent_id = (
+                            mydict[node['parent_id']][attr]
+                            for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
+                        )
+            #print(nodeid, x, y, z, radius, struct_type, parent_id)
+            lines.append(
+                    f"{int(nodeid)} {int(struct_type)} {float(x)} {float(y)} {float(z)} {float(radius)} {int(parent_id)}\n"
+                )
+        return lines
+    
+
+
     def save_swc(self, swc_path: str, sort_by_parentid = True) -> None:
         """
         Save the graph as an SWC file.
@@ -206,7 +226,12 @@ class NeuronGraph(nx.DiGraph):
             If required node attributes are missing.
         """
         try:
-            #node list with parent id added
+            mydict = {}
+            for i in range(len(self.nodes)):
+                mydict[self.nodes[i]['node_id']] = G.nodes[i]
+            lines = []
+            newlines = get_lines(self.nodes[0],mydict, lines)
+            '''#node list with parent id added
             nodelist = []
             for nodeid in self.nodes:
                 node = self.nodes[nodeid]
@@ -236,7 +261,7 @@ class NeuronGraph(nx.DiGraph):
                 )
 
             with open(swc_path, "w") as file:
-                file.writelines(lines)
+                file.writelines(lines)'''
 
             '''lines = []
             for node in sorted(self.nodes()):
