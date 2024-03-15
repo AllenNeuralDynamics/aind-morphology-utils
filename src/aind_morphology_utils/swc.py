@@ -232,7 +232,7 @@ class NeuronGraph(nx.DiGraph):
                 node['parent_id'] = next(iter(self.predecessors(nodeid)), -1)
                 mydict[nodeid] = node
             lines = []
-            newlines = get_lines(self.nodes[0],mydict, lines)
+            newlines = get_lines(mydict[0],mydict, lines)
             '''#node list with parent id added
             nodelist = []
             for nodeid in self.nodes:
