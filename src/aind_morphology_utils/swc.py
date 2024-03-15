@@ -208,7 +208,7 @@ class NeuronGraph(nx.DiGraph):
             If required node attributes are missing.
         
         """
-        def get_lines_horta(node, mydict, lines):
+        def get_lines_horta(node, mydict, lines, completed_ids):
             """
             Parse lines in order for horta for a list of nodes
             """
@@ -228,7 +228,8 @@ class NeuronGraph(nx.DiGraph):
                 lines.append(
                         f"{int(nodeid)} {int(struct_type)} {float(x)} {float(y)} {float(z)} {float(radius)} {int(parent_id)}\n"
                     )
-            return lines
+                completed_ids.append(nodeid)
+            return lines, completed_ids
         
         try:
             mydict = {}
@@ -237,8 +238,12 @@ class NeuronGraph(nx.DiGraph):
                 node['parent_id'] = next(iter(self.predecessors(nodeid)), -1)
                 mydict[nodeid] = node
             lines = []
-
-            lines = get_lines_horta(mydict[0],mydict, lines)
+            completed_ids = []
+            
+            for i in self.nodes:
+                if i not in completed_ids:
+                    lines, completed_ids = get_lines_horta(mydict[i],mydict, lines, completed_ids)
+                
             with open(swc_path, "w") as file:
                 file.writelines(lines)
             '''#node list with parent id added
