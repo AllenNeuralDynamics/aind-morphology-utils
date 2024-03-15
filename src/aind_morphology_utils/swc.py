@@ -243,6 +243,7 @@ class NeuronGraph(nx.DiGraph):
             for i in self.nodes:
                 if i not in completed_ids:
                     lines, completed_ids = get_lines_horta(mydict[i],mydict, lines, completed_ids)
+                    print("completed_ids = ", completed_ids)
                 
             with open(swc_path, "w") as file:
                 file.writelines(lines)
