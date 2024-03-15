@@ -189,27 +189,7 @@ class NeuronGraph(nx.DiGraph):
         for node in self.nodes():
             self.nodes[node]["struct_type"] = structure_type
 
-    def get_lines_horta(node, mydict, lines):
-        """
-        Parse lines in order for horta for a list of nodes
-        """
-
-        if node['parent_id'] == -1:
-            nodeid, x, y, z, radius, struct_type, parent_id = (
-                            node[attr]
-                            for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
-                        )
-        else:
-            get_lines_horta(mydict[node['parent_id']], mydict, lines)
-            nodeid, x, y, z, radius, struct_type, parent_id = (
-                            mydict[node['parent_id']][attr]
-                            for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
-                        )
-            print(nodeid, x, y, z, radius, struct_type, parent_id)
-            lines.append(
-                    f"{int(nodeid)} {int(struct_type)} {float(x)} {float(y)} {float(z)} {float(radius)} {int(parent_id)}\n"
-                )
-        return lines
+    
     
     def save_swc(self, swc_path: str, sort_by_parentid = True) -> None:
         """
@@ -226,7 +206,30 @@ class NeuronGraph(nx.DiGraph):
             If the file cannot be opened for writing.
         KeyError
             If required node attributes are missing.
+        
         """
+        def get_lines_horta(node, mydict, lines):
+            """
+            Parse lines in order for horta for a list of nodes
+            """
+
+            if node['parent_id'] == -1:
+                nodeid, x, y, z, radius, struct_type, parent_id = (
+                                node[attr]
+                                for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
+                            )
+            else:
+                get_lines_horta(mydict[node['parent_id']], mydict, lines)
+                nodeid, x, y, z, radius, struct_type, parent_id = (
+                                mydict[node['parent_id']][attr]
+                                for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
+                            )
+                print(nodeid, x, y, z, radius, struct_type, parent_id)
+                lines.append(
+                        f"{int(nodeid)} {int(struct_type)} {float(x)} {float(y)} {float(z)} {float(radius)} {int(parent_id)}\n"
+                    )
+            return lines
+        
         try:
             mydict = {}
             for nodeid,node in self.nodes.items():
@@ -235,7 +238,7 @@ class NeuronGraph(nx.DiGraph):
                 mydict[nodeid] = node
             lines = []
 
-            lines = self.get_lines_horta(mydict[0],mydict, lines)
+            lines = get_lines_horta(mydict[0],mydict, lines)
             with open(swc_path, "w") as file:
                 file.writelines(lines)
             '''#node list with parent id added
