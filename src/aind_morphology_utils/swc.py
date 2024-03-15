@@ -228,7 +228,9 @@ class NeuronGraph(nx.DiGraph):
         try:
             print(self.nodes[0].keys())
             mydict = {}
+            print(self.nodes[0]['node_id'])
             for i in range(len(self.nodes)):
+                print(i)
                 mydict[self.nodes[i]['node_id']] = self.nodes[i]
             lines = []
             newlines = get_lines(self.nodes[0],mydict, lines)
