@@ -201,7 +201,7 @@ class NeuronGraph(nx.DiGraph):
                             mydict[node['parent_id']][attr]
                             for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
                         )
-            #print(nodeid, x, y, z, radius, struct_type, parent_id)
+            print(nodeid, x, y, z, radius, struct_type, parent_id)
             lines.append(
                     f"{int(nodeid)} {int(struct_type)} {float(x)} {float(y)} {float(z)} {float(radius)} {int(parent_id)}\n"
                 )
@@ -232,7 +232,9 @@ class NeuronGraph(nx.DiGraph):
                 node['parent_id'] = next(iter(self.predecessors(nodeid)), -1)
                 mydict[nodeid] = node
             lines = []
-            newlines = get_lines(mydict[0],mydict, lines)
+            lines = get_lines(mydict[0],mydict, lines)
+            with open(swc_path, "w") as file:
+                file.writelines(lines)
             '''#node list with parent id added
             nodelist = []
             for nodeid in self.nodes:
