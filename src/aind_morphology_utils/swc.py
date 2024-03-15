@@ -189,14 +189,18 @@ class NeuronGraph(nx.DiGraph):
         for node in self.nodes():
             self.nodes[node]["struct_type"] = structure_type
 
-    def get_lines(node, mydict, lines):
+    def get_lines_horta(node, mydict, lines):
+        """
+        Parse lines in order for horta for a list of nodes
+        """
+
         if node['parent_id'] == -1:
             nodeid, x, y, z, radius, struct_type, parent_id = (
                             node[attr]
                             for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
                         )
         else:
-            get_lines(mydict[node['parent_id']], mydict, lines)
+            get_lines_horta(mydict[node['parent_id']], mydict, lines)
             nodeid, x, y, z, radius, struct_type, parent_id = (
                             mydict[node['parent_id']][attr]
                             for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
@@ -207,8 +211,6 @@ class NeuronGraph(nx.DiGraph):
                 )
         return lines
     
-
-
     def save_swc(self, swc_path: str, sort_by_parentid = True) -> None:
         """
         Save the graph as an SWC file.
@@ -232,7 +234,8 @@ class NeuronGraph(nx.DiGraph):
                 node['parent_id'] = next(iter(self.predecessors(nodeid)), -1)
                 mydict[nodeid] = node
             lines = []
-            lines = get_lines(mydict[0],mydict, lines)
+
+            lines = get_lines_horta(mydict[0],mydict, lines)
             with open(swc_path, "w") as file:
                 file.writelines(lines)
             '''#node list with parent id added
