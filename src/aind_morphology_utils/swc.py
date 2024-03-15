@@ -235,7 +235,7 @@ class NeuronGraph(nx.DiGraph):
                 mydict[nodeid] = node
             lines = []
 
-            lines = get_lines_horta(mydict[0],mydict, lines)
+            lines = self.get_lines_horta(mydict[0],mydict, lines)
             with open(swc_path, "w") as file:
                 file.writelines(lines)
             '''#node list with parent id added
