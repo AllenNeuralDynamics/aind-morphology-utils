@@ -226,12 +226,9 @@ class NeuronGraph(nx.DiGraph):
             If required node attributes are missing.
         """
         try:
-            print(self.nodes[0].keys())
             mydict = {}
-            print(self.nodes[0]['node_id'])
-            for i in range(len(self.nodes)):
-                print(i)
-                mydict[self.nodes[i]['node_id']] = self.nodes[i]
+            for node_id,nodedata in self.nodes.items():
+                mydict[i] = self.nodes[i]
             lines = []
             newlines = get_lines(self.nodes[0],mydict, lines)
             '''#node list with parent id added
