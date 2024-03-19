@@ -209,26 +209,23 @@ class NeuronGraph(nx.DiGraph):
         
         """
         def get_lines_horta(node, mydict, lines, completed_ids):
-            """
-            Parse lines in order for horta for a list of nodes
-            """
-
             if node['parent_id'] == -1:
                 nodeid, x, y, z, radius, struct_type, parent_id = (
                                 node[attr]
                                 for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
                             )
             else:
-                get_lines_horta(mydict[node['parent_id']], mydict, lines, completed_ids)
+                get_lines(mydict[node['parent_id']], mydict, lines, completed_ids)
                 nodeid, x, y, z, radius, struct_type, parent_id = (
                                 mydict[node['parent_id']][attr]
                                 for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
                             )
-                print(nodeid, x, y, z, radius, struct_type, parent_id)
-                lines.append(
-                        f"{int(nodeid)} {int(struct_type)} {float(x)} {float(y)} {float(z)} {float(radius)} {int(parent_id)}\n"
-                    )
-                completed_ids.append(nodeid)
+                #print(nodeid, x, y, z, radius, struct_type, parent_id)
+                if nodeid not in completed_ids:
+                    lines.append(
+                            f"{int(nodeid)} {int(struct_type)} {float(x)} {float(y)} {float(z)} {float(radius)} {int(parent_id)}\n"
+                        )
+                    completed_ids.append(nodeid)
             return lines, completed_ids
         
         try:
@@ -237,13 +234,13 @@ class NeuronGraph(nx.DiGraph):
                 node['node_id'] = nodeid
                 node['parent_id'] = next(iter(self.predecessors(nodeid)), -1)
                 mydict[nodeid] = node
+            for i in range(len(self.nodes)):
+                mydict[self.nodes[i]['node_id']] = self.nodes[i]
             lines = []
             completed_ids = []
+            for i in range(len(self.nodes)):
+                lines,completed_ids = get_lines(self.nodes[i],mydict, lines,completed_ids)
             
-            for i in self.nodes:
-                if i not in completed_ids:
-                    lines, completed_ids = get_lines_horta(mydict[i],mydict, lines, completed_ids)
-                    print("completed_ids = ", completed_ids)
                 
             with open(swc_path, "w") as file:
                 file.writelines(lines)
