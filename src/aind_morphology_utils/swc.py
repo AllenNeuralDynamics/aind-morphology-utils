@@ -215,7 +215,7 @@ class NeuronGraph(nx.DiGraph):
                                 for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
                             )
             else:
-                get_lines(mydict[node['parent_id']], mydict, lines, completed_ids)
+                get_lines_horta(mydict[node['parent_id']], mydict, lines, completed_ids)
                 nodeid, x, y, z, radius, struct_type, parent_id = (
                                 mydict[node['parent_id']][attr]
                                 for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
@@ -239,7 +239,7 @@ class NeuronGraph(nx.DiGraph):
             lines = []
             completed_ids = []
             for i in range(len(self.nodes)):
-                lines,completed_ids = get_lines(self.nodes[i],mydict, lines,completed_ids)
+                lines,completed_ids = get_lines_horta(self.nodes[i],mydict, lines,completed_ids)
             
                 
             with open(swc_path, "w") as file:
