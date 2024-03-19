@@ -240,6 +240,7 @@ class NeuronGraph(nx.DiGraph):
             completed_ids = []
             for i in range(len(self.nodes)):
                 lines,completed_ids = get_lines_horta(self.nodes[i],mydict, lines,completed_ids)
+                print('i = ", i, " and this the number of lines: ", len(lines))
             
                 
             with open(swc_path, "w") as file:
