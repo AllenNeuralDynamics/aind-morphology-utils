@@ -38,9 +38,9 @@ class NRRDToOMEZarr:
         assert space_directions.shape == (3, 3)
         assert np.count_nonzero(space_directions - np.diag(np.diagonal(space_directions))) == 0
 
-        if np.all(np.diagonal(space_directions) == 1):
+        if np.allclose(np.diagonal(space_directions), 1, atol=1e-6):
             logging.warning("Space directions are all 1, so multiplying by voxel size.")
-            space_directions *= voxel_size
+            space_directions = np.floor(space_directions) * voxel_size
 
         logging.info(f"Space directions: {space_directions}")
 
