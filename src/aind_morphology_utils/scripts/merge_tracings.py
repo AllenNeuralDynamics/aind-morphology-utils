@@ -31,7 +31,7 @@ def group_neuron_files(
     grouped_files = defaultdict(list)
     for file_path in file_names:
         file_name = os.path.basename(file_path)
-        parts = file_name.lower().split("-")
+        parts = file_name.lower().replace("_", "-").split("-")
         neuron_id, sample, tracer_initials = (
             parts[0],
             parts[1],
