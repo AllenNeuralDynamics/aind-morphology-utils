@@ -31,7 +31,7 @@ def group_neuron_files(
     grouped_files = defaultdict(list)
     for file_path in file_names:
         file_name = os.path.basename(file_path)
-        parts = file_name.split("-")
+        parts = file_name.lower().split("-")
         neuron_id, sample, tracer_initials = (
             parts[0],
             parts[1],
@@ -91,9 +91,9 @@ def merge_swcs(files: List[str]) -> NeuronGraph:
         raise ValueError(f"Expected 2 graphs to merge, got {len(files)}")
 
     dendrite_file = next(
-        (f for f in files if "dendrite" in Path(f).name), None
+        (f for f in files if "dendrite" in Path(f).name.lower()), None
     )
-    axon_file = next((f for f in files if "axon" in Path(f).name), None)
+    axon_file = next((f for f in files if "axon" in Path(f).name.lower()), None)
 
     if not dendrite_file or not axon_file:
         raise ValueError("Could not find both axon and dendrite files")
@@ -165,7 +165,7 @@ def merge_swcs_in_folder(swc_dir: str, out_dir: str, ignore_list: List[str]) -> 
 
         merged_graph.save_swc(
             os.path.join(
-                out_dir, f"{group_key[0]}-{group_key[1]}-{group_key[2]}.swc"
+                out_dir, f"{group_key[0].upper()}-{group_key[1]}-{group_key[2].upper()}.swc"
             )
         )
 
