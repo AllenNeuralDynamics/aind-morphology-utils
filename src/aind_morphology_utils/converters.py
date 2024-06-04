@@ -8,17 +8,19 @@ import ome_zarr.writer
 
 
 class NRRDToOMEZarr:
-    def __init__(self, nrrd_file: str):
+    def __init__(self, nrrd_file: str, voxel_size: float = None):
         """
         Parameters
         ----------
         nrrd_file : str
             Path to the NRRD file containing the displacement field.
+        voxel_size : float
+            The size of the voxels in microns.
         """
         self.disp, header = nrrd.read(nrrd_file)
-        self._process_header(header)
+        self._process_header(header, voxel_size)
 
-    def _process_header(self, header: dict, voxel_size: int = 25):
+    def _process_header(self, header: dict, voxel_size: float = None):
         """
         Process the header information from the NRRD file to extract the transformation matrix.
 
@@ -26,7 +28,7 @@ class NRRDToOMEZarr:
         ----------
         header : dict
             Header information from the NRRD file.
-        voxel_size : int
+        voxel_size : float
             The size of the voxels in microns.
         """
         if header["space"] in ["left-posterior-superior", "LPS"]:
@@ -38,9 +40,8 @@ class NRRDToOMEZarr:
         assert space_directions.shape == (3, 3)
         assert np.count_nonzero(space_directions - np.diag(np.diagonal(space_directions))) == 0
 
-        if np.allclose(np.diagonal(space_directions), 1, atol=1e-6):
-            logging.warning("Space directions are all 1, so multiplying by voxel size.")
-            space_directions = np.floor(space_directions) * voxel_size
+        if voxel_size is not None:
+            space_directions = np.eye(3) * voxel_size
 
         logging.info(f"Space directions: {space_directions}")
 
