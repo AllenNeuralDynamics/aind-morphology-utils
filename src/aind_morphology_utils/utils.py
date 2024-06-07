@@ -192,7 +192,7 @@ def read_registration_transform(reg_path: Union[str, os.PathLike], affine_only: 
     return affinetx, warptx
 
 
-def get_voxel_size_image(image_path: Union[str, os.PathLike], input_scale: int) -> Tuple[float, float, float]:
+def get_voxel_size_image(image_path: Union[str, os.PathLike]) -> Tuple[float, float, float]:
     """
     Get the size of the scaled image at the specified path and scale.
 
@@ -208,10 +208,10 @@ def get_voxel_size_image(image_path: Union[str, os.PathLike], input_scale: int) 
     Tuple[float, float, float]
         The sizes of the scaled image in x, y, and z.
     """
-    ds = zarr.open(image_path, mode="r")[str(input_scale)]
-    sx = ds.shape[-1] * 2 ** input_scale
-    sy = ds.shape[-2] * 2 ** input_scale
-    sz = ds.shape[-3] * 2 ** input_scale
+    ds = zarr.open(image_path, mode="r")["0"]
+    sx = ds.shape[-1]
+    sy = ds.shape[-2]
+    sz = ds.shape[-3]
     return sx, sy, sz
 
 
