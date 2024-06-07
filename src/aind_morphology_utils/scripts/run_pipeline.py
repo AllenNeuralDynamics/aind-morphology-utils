@@ -52,14 +52,13 @@ def _parse_args() -> argparse.Namespace:
         '--swc-scale', type=float, nargs='+', default=[0.748, 0.748, 1]
     )
     parser.add_argument('--flip-axes', type=int, nargs='+', default=[])
-    parser.add_argument('--input-scale', type=int, default=5)
     parser.add_argument('--affine-only', default=False, action='store_true')
     parser.add_argument('--log-level', type=str, default=logging.INFO)
     return parser.parse_args()
 
 
 def process_slicer_transform(
-    slicer_transform_path: str, output_folder: str
+    slicer_transform_path: str, output_folder: str, voxel_size: float = None
 ) -> OMEZarrTransform:
     """
     Process the slicer transform file and save it as a zarr file.
@@ -70,6 +69,8 @@ def process_slicer_transform(
         The path to the slicer transform, either Zarr or NRRD.
     output_folder : str
         The folder to save the zarr file to.
+    voxel_size : float, optional
+        The voxel size of the transform, by default None.
 
     Returns
     -------
@@ -78,7 +79,7 @@ def process_slicer_transform(
     """
     out_zarr = os.path.join(output_folder, 'slicer_transform.ome.zarr')
     if slicer_transform_path.endswith('.nrrd'):
-        converter = NRRDToOMEZarr(slicer_transform_path)
+        converter = NRRDToOMEZarr(slicer_transform_path, voxel_size=voxel_size)
         converter.save(out_zarr)
         return OMEZarrTransform(out_zarr)
     elif slicer_transform_path.endswith('.zarr'):
@@ -124,14 +125,13 @@ def main() -> None:
             input_res=args.input_res,
             swc_scale=args.swc_scale,
             flip_axes=args.flip_axes,
-            input_scale=args.input_scale,
             affine_only=args.affine_only
         )
 
     slicer_transform = None
     if slicer_transform_file is not None:
         slicer_transform = process_slicer_transform(
-            slicer_transform_file, output_folder
+            slicer_transform_file, output_folder, voxel_size=args.transform_res[0]
         )
 
     all_swcs = glob(os.path.join(neuron_folder, '**', '*.swc'), recursive=True)

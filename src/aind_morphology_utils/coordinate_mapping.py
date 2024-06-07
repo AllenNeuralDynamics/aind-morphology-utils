@@ -47,20 +47,18 @@ class AntsTransform:
         input_res: List[float],
         swc_scale: List[float],
         flip_axes: List[bool],
-        input_scale: int,
         affine_only: bool = False,
     ):
         self.affinetx, self.warptx = read_registration_transform(
             registration_folder, affine_only
         )
         self.sx, self.sy, self.sz = get_voxel_size_image(
-            image_path, input_scale
+            image_path
         )
         self.transform_res = transform_res
         self.input_res = input_res
         self.swc_scale = swc_scale
         self.flip_axes = flip_axes
-        self.input_scale = input_scale
 
     def transform(self, morph: Morphology) -> Morphology:
         """
