@@ -143,7 +143,7 @@ class AntsTransform:
                 affine_pt = warp_pt
             else:
                 #invert warp field
-                affine_pt = self.warptx.invert.apply_to_point(warp_pt)
+                affine_pt = self.warptx.apply_to_point(warp_pt) #assume warptx is inverted
 
             scaled_pt = self.affinetx.invert.apply_to_point(affine_pt)
             pt = [dim / scale for dim, scale in zip(pt, scale)]
