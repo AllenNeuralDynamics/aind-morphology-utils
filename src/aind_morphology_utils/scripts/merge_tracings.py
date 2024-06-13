@@ -7,6 +7,7 @@ from typing import List, Dict, Tuple
 import networkx as nx
 
 from aind_morphology_utils.swc import NeuronGraph, StructureTypes
+from aind_morphology_utils.utils import collect_swcs
 
 
 def group_neuron_files(
@@ -40,32 +41,6 @@ def group_neuron_files(
         group_key = (neuron_id, sample, tracer_initials)
         grouped_files[group_key].append(file_path)
     return grouped_files
-
-
-def collect_swcs(directory: str, ignore_list: List[str]) -> List[str]:
-    """
-    Walk through a directory and collect SWC files, ignoring files with certain substrings.
-
-    Parameters
-    ----------
-    directory : str
-        The directory to search for SWC files.
-    ignore_list : List[str]
-        List of substrings to ignore in file names.
-
-    Returns
-    -------
-    List[str]
-        A list of absolute file paths for SWC files.
-    """
-    swc_files = []
-    for root, dirs, files in os.walk(directory):
-        for file in files:
-            if file.endswith(".swc") and not any(
-                ign in file for ign in ignore_list
-            ):
-                swc_files.append(os.path.join(root, file))
-    return swc_files
 
 
 def merge_swcs(files: List[str]) -> NeuronGraph:

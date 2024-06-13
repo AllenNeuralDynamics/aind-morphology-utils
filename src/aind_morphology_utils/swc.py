@@ -1,5 +1,6 @@
 import logging
 from enum import Enum
+from pathlib import Path
 from typing import Dict
 
 import networkx as nx
@@ -29,6 +30,7 @@ class NeuronGraph(nx.DiGraph):
     def __init__(self):
         super().__init__()
         self.offset = [0.0, 0.0, 0.0]  # X Y Z
+        self.name = None
 
     @classmethod
     def from_swc(cls, swc_file_path: str) -> "NeuronGraph":
@@ -116,6 +118,8 @@ class NeuronGraph(nx.DiGraph):
             _LOGGER.error(f"Error reading file {swc_file_path}: {e}")
             raise
 
+        graph.set_name(Path(swc_file_path).stem)
+
         return graph
 
     def set_structure_types(self, structure_type_map: Dict[int, int]) -> None:
@@ -188,3 +192,25 @@ class NeuronGraph(nx.DiGraph):
         except IOError as e:
             _LOGGER.error(f"Error saving file {swc_path}: {e}")
             raise
+
+    def set_name(self, name: str) -> None:
+        """
+        Set the name of the neuron.
+
+        Parameters
+        ----------
+        name : str
+            The name of the neuron.
+        """
+        self.name = name
+
+    def get_name(self) -> str:
+        """
+        Get the name of the neuron.
+
+        Returns
+        -------
+        str
+            The name of the neuron.
+        """
+        return self.name

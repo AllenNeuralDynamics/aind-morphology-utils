@@ -1,7 +1,7 @@
 import json
 import os
 from glob import glob
-from typing import Union, Any, Tuple, Set, List
+from typing import Union, Any, Tuple, Set, List, Optional
 
 import numpy
 import numpy as np
@@ -161,6 +161,34 @@ def read_swc(swc_path: Union[str, os.PathLike], add_offset: bool = True) -> Morp
                 node['z'] += offset[2]
 
     return morph
+
+
+def collect_swcs(directory: str, ignore_list: Optional[List[str]] = None) -> List[str]:
+    """
+    Walk through a directory and collect SWC files, ignoring files with certain substrings.
+
+    Parameters
+    ----------
+    directory : str
+        The directory to search for SWC files.
+    ignore_list : List[str]
+        List of substrings to ignore in file names.
+
+    Returns
+    -------
+    List[str]
+        A list of absolute file paths for SWC files.
+    """
+    if ignore_list is None:
+        ignore_list = []
+    swc_files = []
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            if file.endswith(".swc") and not any(
+                ign in file for ign in ignore_list
+            ):
+                swc_files.append(os.path.join(root, file))
+    return swc_files
 
 
 def read_registration_transform(reg_path: Union[str, os.PathLike], affine_only: bool = False) -> Tuple[Any, Any]:
