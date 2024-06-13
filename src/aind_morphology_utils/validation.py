@@ -78,7 +78,13 @@ def validate_swcs(swc_paths: List[str], image_path: str, output_dir: str) -> Dic
     return d
 
 
-def get_soma_mip(image_path: str, graph: NeuronGraph, output_dir: str, crop_size: int = 128) -> str:
+def get_soma_mip(
+        image_path: str,
+        graph: NeuronGraph,
+        output_dir: str,
+        crop_size: int = 128,
+        mip_depth: int = 10
+) -> str:
     """
     Get a MIP of the soma coordinate from the Zarr image.
 
@@ -92,6 +98,8 @@ def get_soma_mip(image_path: str, graph: NeuronGraph, output_dir: str, crop_size
         The directory to save output files.
     crop_size : int, optional
         The size of the crop around the soma coordinate (default is 128).
+    mip_depth : int, optional
+        The number of slices on each side for the MIP
 
     Returns
     -------
@@ -116,7 +124,7 @@ def get_soma_mip(image_path: str, graph: NeuronGraph, output_dir: str, crop_size
 
     s = math.ceil(crop_size / 2)
 
-    mip = arr[0, 0, z, y - s:y + s, x - s:x + s]
+    mip = arr[0, 0, z - mip_depth:z + mip_depth, y - s:y + s, x - s:x + s].max(axis=0)
 
     mip = rescale_intensity(mip, out_range=(0, 255)).astype('uint8')
 
