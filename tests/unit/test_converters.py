@@ -19,7 +19,7 @@ class TestNRRDToOMEZarr(unittest.TestCase):
         self.mock_nrrd_header = {
             "space": "left-posterior-superior",
             "space directions": np.array(
-                [[np.nan, np.nan, np.nan], [1, 0, 0], [0, 1, 0], [0, 0, 1]]
+                [[np.nan, np.nan, np.nan], [10, 0, 0], [0, 10, 0], [0, 0, 10]]
             ),
             "space origin": np.array([0, 0, 0]),
         }
@@ -40,7 +40,7 @@ class TestNRRDToOMEZarr(unittest.TestCase):
             # Check if HDF5 file is created with correct content
             z = zarr.open(tmp_file, mode="r")
             expected_tmat = np.eye(4)
-            expected_tmat[:, 0:3] /= 25
+            expected_tmat[:, 0:3] /= 10
             np.testing.assert_array_equal(
                 z["DisplacementField"]['0'][:], self.mock_nrrd_data
             )
