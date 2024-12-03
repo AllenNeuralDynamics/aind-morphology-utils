@@ -178,6 +178,47 @@ class AntsInverseTransform:
 
         return morph_copy
 
+    def transform_array(self, arr: np.ndarray):
+        """
+        Inverse Transform the given array from CCF space to imaging space.
+
+        Parameters
+        ----------
+        arr: ndarray
+            the numpy array
+
+        Returns
+        -------
+        ndarray
+            the transformed array
+        """
+
+        #Invert the entire procedure.
+        _LOGGER.info(f"# points: {len(arr)}")
+
+        scale = [
+            raw / trans
+            for trans, raw in zip(self.transform_res, self.input_res)
+        ]
+
+        transformed_pts = []
+        for pt in arr:
+            warp_pt = [dim / tres for dim, tres in zip(pt, self.transform_res)]
+            
+            if self.warptx is None:
+                affine_pt = warp_pt
+            else:
+                affine_pt = self.warptx.apply_to_point(warp_pt)
+
+            scaled_pt = self.affinetx.apply_to_point(affine_pt)
+            pt = [dim / scale for dim, scale in zip(scaled_pt, scale)]
+            pt = flip_pt(pt, [self.sx, self.sy, self.sz], self.flip_axes)
+            pt = pt * np.array(self.swc_scale)
+
+            transformed_pts.append(pt)
+
+        return np.array(transformed_pts)
+
 
 class OMEZarrTransform:
     """

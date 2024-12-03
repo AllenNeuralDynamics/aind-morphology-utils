@@ -231,3 +231,72 @@ def flip_pt(pt: List[float], s: List[float], flip_axes: List[int]) -> List[float
     for fa in flip_axes:
         pt[fa] = s[fa] - pt[fa]
     return pt
+
+
+def read_obj(file_path):
+    """
+    Reads vertices, normals, and faces from an OBJ file.
+
+    Parameters
+    ----------
+    file_path (str): Path to the OBJ file.
+
+    Returns
+    -------
+        tuple: A tuple containing:
+            - vertices (np.ndarray): Array of vertex coordinates.
+            - normals (np.ndarray): Array of normal vectors.
+            - faces (list): List of faces, where each face is a list of tuples
+                            (vertex index, normal index).
+    """
+    vertices = []
+    normals = []
+    faces = []
+    with open(file_path, 'r') as file:
+        for line in file:
+            if line.startswith('v '):
+                parts = line.strip().split()
+                vertex = list(map(float, parts[1:4]))
+                vertices.append(vertex)
+            elif line.startswith('vn '):
+                parts = line.strip().split()
+                normal = list(map(float, parts[1:4]))
+                normals.append(normal)
+            elif line.startswith('f '):
+                parts = line.strip().split()
+                face = []
+                for part in parts[1:]:
+                    # Format: vertex_index//normal_index
+                    vertex_idx, normal_idx = part.split('//')
+                    vertex_index = int(vertex_idx) - 1
+                    normal_index = int(normal_idx) - 1
+                    face.append((vertex_index, normal_index))
+                faces.append(face)
+    return np.array(vertices), np.array(normals), faces
+
+
+def write_obj(file_path, vertices, normals, faces):
+    """
+    Writes vertices, normals, and faces to an OBJ file.
+
+    Parameters
+    ----------
+    file_path (str): Path to the output OBJ file.
+    vertices (np.ndarray): Array of vertex coordinates.
+    normals (np.ndarray): Array of normal vectors.
+    faces (list): List of faces.
+    """
+    with open(file_path, 'w') as file:
+        for vertex in vertices:
+            file.write('v {:.6f} {:.6f} {:.6f}\n'.format(*vertex))
+        for normal in normals:
+            file.write('vn {:.6f} {:.6f} {:.6f}\n'.format(*normal))
+        for face in faces:
+            face_indices = []
+            for vertex_idx, normal_idx in face:
+                # OBJ indices start at 1
+                if normal_idx is not None:
+                    face_indices.append('{0}//{1}'.format(vertex_idx + 1, normal_idx + 1))
+                else:
+                    face_indices.append(str(vertex_idx + 1))
+            file.write('f ' + ' '.join(face_indices) + '\n')
