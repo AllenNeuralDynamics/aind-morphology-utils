@@ -1,7 +1,7 @@
 import logging
 import os
 from copy import deepcopy
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import zarr
@@ -41,16 +41,16 @@ class AntsTransform:
 
     def __init__(
         self,
-        registration_folder: str,
+        affine_path: str,
         image_path: str,
         transform_res: List[float],
         input_res: List[float],
         swc_scale: List[float],
         flip_axes: List[bool],
-        affine_only: bool = False,
+        warp_path: Optional[str] = None,
     ):
         self.affinetx, self.warptx = read_registration_transform(
-            registration_folder, affine_only
+            affine_path, warp_path
         )
         self.sx, self.sy, self.sz = get_voxel_size_image(
             image_path
@@ -93,7 +93,6 @@ class AntsTransform:
             scaled_pt = [dim * scale for dim, scale in zip(pt, scale)]
             affine_pt = self.affinetx.apply_to_point(scaled_pt)
             if self.warptx is None:
-                # _LOGGER.info("No warp transform found, using affine only")
                 warp_pt = affine_pt
             else:
                 warp_pt = self.warptx.apply_to_point(affine_pt)
@@ -105,8 +104,34 @@ class AntsTransform:
             node["z"] = scaled_warp_pt[2]
 
         return morph_copy
-    
-    def inverse_transform(self, morph: Morphology) -> Morphology:
+
+
+class AntsInverseTransform:
+    def __init__(
+        self,
+        affine_path: str,
+        image_path: str,
+        transform_res: List[float],
+        input_res: List[float],
+        swc_scale: List[float],
+        flip_axes: List[bool],
+        inverse_warp_path: Optional[str] = None,
+    ):
+        self.affinetx, self.warptx = read_registration_transform(
+            affine_path, inverse_warp_path
+        )
+        # Registered space -> image space
+        self.affinetx = self.affinetx.invert()
+
+        self.sx, self.sy, self.sz = get_voxel_size_image(
+            image_path
+        )
+        self.transform_res = transform_res
+        self.input_res = input_res
+        self.swc_scale = swc_scale
+        self.flip_axes = flip_axes
+
+    def transform(self, morph: Morphology) -> Morphology:
         """
         Inverse Transform the given Morphology from CCF space to imaging space.
 
@@ -135,18 +160,17 @@ class AntsTransform:
         for node in morph_copy.compartment_list:
             
             scaled_warp_pt = [ node["x"] , node["y"], node["z"] ]
-            warp_pt = [dim / scale for dim, scale in zip(scaled_warp_pt, self.transform_res)]
+            warp_pt = [dim / tres for dim, tres in zip(scaled_warp_pt, self.transform_res)]
             
             if self.warptx is None:
                 affine_pt = warp_pt
             else:
-                #invert warp field
-                affine_pt = self.warptx.invert.apply_to_point(warp_pt)
+                affine_pt = self.warptx.apply_to_point(warp_pt)
 
-            scaled_pt = self.affinetx.invert.apply_to_point(affine_pt)
-            pt = [dim / scale for dim, scale in zip(pt, scale)]
+            scaled_pt = self.affinetx.apply_to_point(affine_pt)
+            pt = [dim / scale for dim, scale in zip(scaled_pt, scale)]
             pt = flip_pt(pt, [self.sx, self.sy, self.sz], self.flip_axes)
-            pt = pt* np.array(self.swc_scale)
+            pt = pt * np.array(self.swc_scale)
 
             node["x"] = pt[0]
             node["y"] = pt[1]
