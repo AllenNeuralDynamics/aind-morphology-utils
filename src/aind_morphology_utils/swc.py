@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Dict
 
 import networkx as nx
+from allensdk.core.swc import Morphology
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,6 +30,47 @@ class NeuronGraph(nx.DiGraph):
     def __init__(self):
         super().__init__()
         self.offset = [0.0, 0.0, 0.0]  # X Y Z
+
+    
+    def from_allensdk_morphology(self, morphology: Morphology)-> "NeuronGraph":
+        """
+        Load an an allensdk morphology object into a NeuronGraph.
+        """
+        #graph = cls()  # Instantiate a new NeuronGraph object
+
+        print("Now starting this....")
+        for compartment in morphology.compartment_list:
+            node_id = compartment['id']
+            struct_type = compartment['type']
+            x = compartment['x']
+            y = compartment['y']
+            z = compartment['z']
+            radius = compartment['radius']
+            parent_id = compartment['parent']
+            
+            try:
+                self.add_node(
+                                node_id,
+                                struct_type=struct_type,
+                                x=x,
+                                y=y,
+                                z=z,
+                                radius=radius,
+                            )
+            except:
+                print("Could not add node!")
+            
+        for compartment in morphology.compartment_list:
+            node_id = compartment['id']
+            parent_id = compartment['parent']
+            try:
+                if parent_id != -1:
+                    self.add_edge(parent_id, node_id)
+            except:
+                print("Couldn't add edge!!!")
+        
+        #return graph
+
 
     @classmethod
     def from_swc(cls, swc_file_path: str) -> "NeuronGraph":
@@ -147,7 +189,9 @@ class NeuronGraph(nx.DiGraph):
         for node in self.nodes():
             self.nodes[node]["struct_type"] = structure_type
 
-    def save_swc(self, swc_path: str) -> None:
+    
+    
+    def save_swc(self, swc_path: str, sort_by_parentid = True) -> None:
         """
         Save the graph as an SWC file.
 
@@ -162,9 +206,78 @@ class NeuronGraph(nx.DiGraph):
             If the file cannot be opened for writing.
         KeyError
             If required node attributes are missing.
+        
         """
+        def get_lines_horta(node, mydict, lines, completed_ids):
+            if node['parent_id'] == -1:
+                nodeid, x, y, z, radius, struct_type, parent_id = (
+                                node[attr]
+                                for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
+                            )
+            else:
+                get_lines_horta(mydict[node['parent_id']], mydict, lines, completed_ids)
+                nodeid, x, y, z, radius, struct_type, parent_id = (
+                                mydict[node['parent_id']][attr]
+                                for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
+                            )
+                #print(nodeid, x, y, z, radius, struct_type, parent_id)
+                if nodeid not in completed_ids:
+                    lines.append(
+                            f"{int(nodeid)} {int(struct_type)} {float(x)} {float(y)} {float(z)} {float(radius)} {int(parent_id)}\n"
+                        )
+                    completed_ids.append(nodeid)
+            return lines, completed_ids
+        
         try:
+            mydict = {}
+            for nodeid,node in self.nodes.items():
+                node['node_id'] = nodeid
+                node['parent_id'] = next(iter(self.predecessors(nodeid)), -1)
+                mydict[nodeid] = node
+            for i in range(len(self.nodes)):
+                mydict[self.nodes[i]['node_id']] = self.nodes[i]
             lines = []
+            completed_ids = []
+            for i in range(len(self.nodes)):
+                lines,completed_ids = get_lines_horta(self.nodes[i],mydict, lines,completed_ids)
+                #print("i = ", i, " and this the number of lines: ", len(lines))
+            
+                
+            with open(swc_path, "w") as file:
+                file.writelines(lines)
+            '''#node list with parent id added
+            nodelist = []
+            for nodeid in self.nodes:
+                node = self.nodes[nodeid]
+                node['node_id'] = nodeid
+                node['parent_id'] = next(iter(self.predecessors(nodeid)), -1)
+                nodelist.append(node)
+
+            if sort_by_parentid:
+                nodelist.sort(key=lambda s: s['node_id'])
+                print("sorted")
+
+            #populate lines
+            lines = []
+            for attrs in nodelist:
+                try:
+                    node, x, y, z, radius, struct_type, parent_id = (
+                        attrs[attr]
+                        for attr in ["node_id", "x", "y", "z", "radius", "struct_type", "parent_id"]
+                    )
+                except KeyError as e:
+                    raise KeyError(
+                        f"Missing required attribute {e} for node"
+                    )
+
+                lines.append(
+                    f"{int(node)} {int(struct_type)} {float(x)} {float(y)} {float(z)} {float(radius)} {int(parent_id)}\n"
+                )
+
+            with open(swc_path, "w") as file:
+                file.writelines(lines)'''
+
+            '''lines = []
             for node in sorted(self.nodes()):
                 attrs = self.nodes[node]
                 try:
@@ -183,7 +296,7 @@ class NeuronGraph(nx.DiGraph):
                 )
 
             with open(swc_path, "w") as file:
-                file.writelines(lines)
+                file.writelines(lines)'''
 
         except IOError as e:
             _LOGGER.error(f"Error saving file {swc_path}: {e}")
