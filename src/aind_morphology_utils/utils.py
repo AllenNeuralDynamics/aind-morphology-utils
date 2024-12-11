@@ -163,7 +163,7 @@ def read_swc(swc_path: Union[str, os.PathLike], add_offset: bool = True) -> Morp
     return morph
 
 
-def read_registration_transform(reg_path: Union[str, os.PathLike], affine_only: bool = False) -> Tuple[Any, Any]:
+def read_registration_transform(affine_path: Union[str, os.PathLike], warp_path: Union[str, os.PathLike]) -> Tuple[Any, Any]:
     """
     Imports ants transformation from registration output
 
@@ -179,16 +179,11 @@ def read_registration_transform(reg_path: Union[str, os.PathLike], affine_only: 
     Tuple[Any, Any]
         affine transform and nonlinear warp field from ants.registration()
     """
-    affine_file = glob(os.path.join(reg_path, '*.mat'))[0]
-    affine = read_transform(affine_file)
-    affinetx = affine.invert()
-    if affine_only:
+    affinetx = read_transform(affine_path).invert()
+    if warp_path is None:
         return affinetx, None
 
-    warp_file = glob(os.path.join(reg_path, '*.gz'))[0]
-    warp = image_read(warp_file)
-    warptx = transform_from_displacement_field(warp)
-
+    warptx = transform_from_displacement_field(image_read(warp_path))
     return affinetx, warptx
 
 

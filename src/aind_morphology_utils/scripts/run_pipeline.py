@@ -22,8 +22,13 @@ _LOGGER = logging.getLogger(__name__)
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--reg-dir',
+        '--affine-path',
         type=str,
+    )
+    parser.add_argument(
+        '--warp-path',
+        type=str,
+        default=None,
     )
     parser.add_argument(
         '--slicer-transform',
@@ -52,7 +57,6 @@ def _parse_args() -> argparse.Namespace:
         '--swc-scale', type=float, nargs='+', default=[0.748, 0.748, 1]
     )
     parser.add_argument('--flip-axes', type=int, nargs='+', default=[])
-    parser.add_argument('--affine-only', default=False, action='store_true')
     parser.add_argument('--log-level', type=str, default=logging.INFO)
     return parser.parse_args()
 
@@ -103,8 +107,11 @@ def main() -> None:
     neuron_folder = args.swc_dir
     _LOGGER.info(f"Neuron folder: {neuron_folder}")
 
-    ants_registration_folder = args.reg_dir
-    _LOGGER.info(f"registration folder: {ants_registration_folder}")
+    affine_path = args.affine_path
+    _LOGGER.info(f"affine path: {affine_path}")
+
+    warp_path = args.warp_path
+    _LOGGER.info(f"warp path: {warp_path}")
 
     slicer_transform_file = args.slicer_transform
     _LOGGER.info(f"slicer transform file: {slicer_transform_file}")
@@ -117,15 +124,15 @@ def main() -> None:
     os.makedirs(output_folder, exist_ok=True)
 
     ants_transform = None
-    if ants_registration_folder is not None:
+    if affine_path is not None:
         ants_transform = coordinate_mapping.AntsTransform(
-            registration_folder=ants_registration_folder,
+            affine_path=affine_path,
+            warp_path=warp_path,
             image_path=image_path,
             transform_res=args.transform_res,
             input_res=args.input_res,
             swc_scale=args.swc_scale,
             flip_axes=args.flip_axes,
-            affine_only=args.affine_only
         )
 
     slicer_transform = None
