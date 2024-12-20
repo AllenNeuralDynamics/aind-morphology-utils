@@ -24,36 +24,13 @@ def graph_to_points(graph: nx.Graph) -> np.ndarray:
     Returns
     -------
     np.ndarray
-        A NumPy array of shape (N, 3) where N is the number of nodes, and each row contains [x, y, z].
+        A NumPy array of shape (N, 3) where each row contains [x, y, z].
     """
     points = []
     for n in sorted(graph.nodes()):
         node = graph.nodes()[n]
         points.append([node['x'], node['y'], node['z']])
     return np.array(points)
-
-
-def graphs_to_kdtree(graphs: List[NeuronGraph]) -> Optional[KDTree]:
-    """
-    Builds a KDTree from a collection of neuron graphs.
-
-    Parameters
-    ----------
-    graphs : list of NeuronGraph
-        A list of neuron graphs, each containing nodes with 3D coordinates.
-
-    Returns
-    -------
-    KDTree or None
-        A KDTree built from all the graph points combined, or None if no points are found.
-    """
-    all_points = []
-    for g in graphs:
-        points = graph_to_points(g)
-        all_points.extend(points)
-    if not all_points:
-        return None
-    return KDTree(np.array(all_points))
 
 
 def cluster_points(points: np.ndarray, eps: float, min_samples: int) -> List[np.ndarray]:
@@ -102,25 +79,36 @@ def find_crossovers(
     g: NeuronGraph,
     kdt: KDTree,
     radius: float,
-    cluster_dist: float = 20.0,
-    min_samples: int = 3
+    cluster_dist: float,
+    min_samples: int,
+    all_point_labels: np.ndarray,
+    current_graph_label: int,
+    visited: set
 ) -> List[List[float]]:
     """
-    Finds crossover points between a source neuron graph and other neurons represented by a KDTree.
+    Finds crossover points between a source neuron graph and other neurons represented by a KDTree,
+    excluding points from graphs that have already been visited or from the same graph.
+
+    This version picks only the nearest valid neighbor from each source point's neighborhood.
 
     Parameters
     ----------
     g : NeuronGraph
         The source neuron graph.
     kdt : KDTree
-        A KDTree built from the other neuron graphs' points.
+        A KDTree built from all the graphs' points combined.
     radius : float
         The spatial radius to use when querying nearby points from `kdt`.
-    cluster_dist : float, optional
-        The epsilon parameter for the DBSCAN clustering, by default 20.0.
-    min_samples : int, optional
-        The minimum number of samples in a neighborhood for a point to be considered a core point
-        by DBSCAN, by default 3.
+    cluster_dist : float
+        The epsilon parameter for the DBSCAN clustering.
+    min_samples : int
+        The minimum number of samples in a neighborhood for DBSCAN.
+    all_point_labels : np.ndarray
+        An array parallel to kdt.data, indicating the graph index for each point.
+    current_graph_label : int
+        The label/index of the current graph being processed.
+    visited : set
+        A set of graph labels that have been processed.
 
     Returns
     -------
@@ -129,21 +117,32 @@ def find_crossovers(
     """
     source_points = graph_to_points(g)
 
-    # Query nearest neighbor in all other graphs for each source point
-    dd, ii = kdt.query(source_points, k=1)
+    neighborhoods = kdt.query_ball_point(source_points, r=radius, return_sorted=True)
 
-    # Filter results by radius
-    mask = dd <= radius
-    ii = ii[mask]
-
-    if len(ii) == 0:
+    if len(neighborhoods) == 0:
         return []
 
-    target_coords = kdt.data[ii]
+    valid_indices = []
 
-    # Cluster target coordinates and extract representatives
-    reps = cluster_points(target_coords, eps=cluster_dist,
-                          min_samples=min_samples)
+    # For each source point's neighborhood, pick the nearest valid neighbor
+    # 'valid' means it's not from a visited graph or the same graph
+    for nhood in neighborhoods:
+        chosen_idx = None
+        for idx in nhood:
+            graph_label = all_point_labels[idx]
+            if graph_label not in visited and graph_label != current_graph_label:
+                chosen_idx = idx
+                break
+        if chosen_idx is not None:
+            valid_indices.append(chosen_idx)
+
+    if len(valid_indices) == 0:
+        return []
+
+    target_coords = kdt.data[valid_indices]
+
+    # Cluster the chosen valid neighbors and find representatives
+    reps = cluster_points(target_coords, eps=cluster_dist, min_samples=min_samples)
     return [r.tolist() for r in reps]
 
 
@@ -183,19 +182,19 @@ def main() -> None:
     parser.add_argument(
         "--radius",
         type=float,
-        default=5,
+        default=5.0,
         help="Radius for querying neighbors in the KDTree."
     )
     parser.add_argument(
         "--cluster_dist",
         type=float,
-        default=20,
+        default=20.0,
         help="Epsilon parameter for DBSCAN clustering."
     )
     parser.add_argument(
         "--min_samples",
         type=int,
-        default=3,
+        default=5,
         help="Minimum samples parameter for DBSCAN clustering."
     )
     parser.add_argument(
@@ -220,33 +219,45 @@ def main() -> None:
     # Load graphs
     all_graphs = load_graphs_from_dir(swcdir)
     all_keys = list(all_graphs.keys())
+
+    # Build a single KDTree from all graphs and keep track of their labels
+    all_points = []
+    all_point_labels = []
+    for i, g in all_graphs.items():
+        pts = graph_to_points(g)
+        all_points.append(pts)
+        # Create a label array for these points
+        all_point_labels.append(np.full(len(pts), i, dtype=int))
+
+    if len(all_points) == 0:
+        print("No graphs loaded.")
+        return
+
+    all_points = np.vstack(all_points)
+    all_point_labels = np.concatenate(all_point_labels)
+
+    kdt = KDTree(all_points)
+
     all_crossovers: List[List[float]] = []
+    visited = set()
 
-    # Process each graph, build KDTree from the rest, and find crossovers
     for graph_label in all_keys:
-        g = all_graphs.pop(graph_label)
-        rest_graphs = list(all_graphs.values())
-        if rest_graphs:
-            # FIXME: this could be sped up by building
-            # one kdtree with all graphs up front, then filtering
-            # queries for visted graphs.
-            start_kdtree = time.time()
-            kdt = graphs_to_kdtree(rest_graphs)
-            end_kdtree = time.time()
-            # print(f"graphs_to_kdtree took {end_kdtree - start_kdtree:.4f} seconds")
-            if kdt is None:
-                continue
-            all_crossovers.extend(
-                find_crossovers(
-                    g,
-                    kdt,
-                    radius,
-                    cluster_dist=cluster_dist,
-                    min_samples=min_samples
-                )
-            )
+        g = all_graphs[graph_label]
 
-    # Save all crossovers to a file
+        visited.add(graph_label)
+
+        cr = find_crossovers(
+            g,
+            kdt,
+            radius,
+            cluster_dist=cluster_dist,
+            min_samples=min_samples,
+            all_point_labels=all_point_labels,
+            current_graph_label=graph_label,
+            visited=visited
+        )
+        all_crossovers.extend(cr)
+
     # Each line: "x y z"
     with open(output_file, "w") as f:
         for coord in all_crossovers:

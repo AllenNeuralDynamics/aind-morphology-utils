@@ -24,7 +24,8 @@ dependencies = [
     "scipy",
     "s3fs",
     "networkx",
-    "ome-zarr"
+    "ome-zarr",
+    "scikit-learn",
 ]
 
 [project.optional-dependencies]
