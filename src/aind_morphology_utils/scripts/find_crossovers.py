@@ -201,7 +201,6 @@ def main() -> None:
     parser.add_argument(
         "--swcdir",
         type=str,
-        default="/root/capsule/data/exaSPIM_653980_block_000/swcs/final-trees",
         help="Directory containing SWC files."
     )
     parser.add_argument(

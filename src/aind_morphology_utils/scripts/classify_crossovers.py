@@ -39,16 +39,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--coords-path",
         type=str,
-        default="/root/capsule/crossovers.txt",
         help="Path to the text file containing bracketed 3D coordinate pairs."
     )
     parser.add_argument(
         "--label-mask",
         type=str,
-        default=(
-            "gs://allen-nd-goog/from_google/whole_brain/653980_b0/"
-            "202412_73227862_855_mean80_mask40_dynamic/label_mask"
-        ),
         help="Path or URI to the label mask (Neuroglancer Precomputed)."
     )
     parser.add_argument(
@@ -76,7 +71,7 @@ def parse_args() -> argparse.Namespace:
         "--scale",
         type=float,
         nargs=3,
-        default=(0.748, 0.748, 1.0),
+        default=(1.0, 1.0, 1.0),
         help=(
             "Scaling factors (x_scale, y_scale, z_scale) to apply to the coordinates "
             "before saving them. Used to convert from voxel to physical units."
@@ -85,25 +80,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--same-output-filepath",
         type=str,
-        default="/results/same_labels.png",
+        default="same_labels.png",
         help="Path to save the montage of pairs that share the same label."
     )
     parser.add_argument(
         "--diff-output-filepath",
         type=str,
-        default="/results/diff_labels.png",
+        default="diff_labels.png",
         help="Path to save the montage of pairs that have different labels."
     )
     parser.add_argument(
         "--same-output-coords",
         type=str,
-        default="/results/same_coords.txt",
+        default="same_coords.txt",
         help="Path to save the text file of source–target pairs that share the same label."
     )
     parser.add_argument(
         "--diff-output-coords",
         type=str,
-        default="/results/diff_coords.txt",
+        default="diff_coords.txt",
         help="Path to save the text file of source–target pairs that have different labels."
     )
 
