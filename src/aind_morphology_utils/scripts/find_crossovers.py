@@ -33,9 +33,10 @@ def graph_to_points(graph: nx.Graph) -> np.ndarray:
     return np.array(points)
 
 
-def cluster_points(points: np.ndarray, eps: float, min_samples: int) -> List[np.ndarray]:
+def cluster_points(points: np.ndarray, eps: float, min_samples: int) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Clusters points using DBSCAN and returns representative points for each cluster.
+    Clusters points using DBSCAN and returns representative points for each cluster
+    along with their indices in the original `points` array.
 
     Parameters
     ----------
@@ -48,31 +49,50 @@ def cluster_points(points: np.ndarray, eps: float, min_samples: int) -> List[np.
 
     Returns
     -------
-    List[np.ndarray]
-        A list of representative points (each a length-3 ndarray) for each cluster.
+    Tuple[np.ndarray, np.ndarray]
+        The first element (np.ndarray) is an array of shape (K, 3), where K is the number
+        of clusters (including the noise cluster if `-1` is present). Each row represents
+        the chosen representative point for that cluster.  
+        The second element (np.ndarray) is a 1D array of length K containing the indices
+        of these representative points in the original `points` array.
     """
+    # Perform DBSCAN clustering
     clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(points)
     labels = clustering.labels_
+
+    # Identify each cluster by its ID (including -1 for noise, if any)
     unique_clusters = set(labels)
 
-    representatives = []
-    for cluster_id in unique_clusters:
-        cluster_points = points[labels == cluster_id]
+    representative_points = []
+    representative_indices = []
 
-        if len(cluster_points) == 1:
-            # Single point cluster, return the point itself
-            chosen_point = cluster_points[0]
+    for cluster_id in unique_clusters:
+        # Find all indices in this cluster
+        cluster_idxs = np.where(labels == cluster_id)[0]  # Indices in the original 'points' array
+        cluster_pts = points[cluster_idxs]
+
+        if len(cluster_pts) == 1:
+            # Single point in this cluster
+            chosen_point = cluster_pts[0]
+            chosen_index = cluster_idxs[0]
         else:
-            # Multiple points: find centroid and choose closest point
-            centroid = np.mean(cluster_points, axis=0)
-            diffs = cluster_points - centroid
+            # Multiple points: find the centroid and choose the closest point
+            centroid = np.mean(cluster_pts, axis=0)
+            diffs = cluster_pts - centroid
             dists = np.linalg.norm(diffs, axis=1)
             best_idx = np.argmin(dists)
-            chosen_point = cluster_points[best_idx]
+            chosen_point = cluster_pts[best_idx]
+            chosen_index = cluster_idxs[best_idx]
 
-        representatives.append(chosen_point)
+        representative_points.append(chosen_point)
+        representative_indices.append(chosen_index)
 
-    return representatives
+    # Convert to NumPy arrays for convenient downstream usage
+    representative_points = np.array(representative_points)
+    representative_indices = np.array(representative_indices, dtype=int)
+
+    return representative_points, representative_indices
+
 
 
 def find_crossovers(
@@ -123,10 +143,11 @@ def find_crossovers(
         return []
 
     valid_indices = []
+    valid_sources = []
 
     # For each source point's neighborhood, pick the nearest valid neighbor
     # 'valid' means it's not from a visited graph or the same graph
-    for nhood in neighborhoods:
+    for i, nhood in enumerate(neighborhoods):
         chosen_idx = None
         for idx in nhood:
             graph_label = all_point_labels[idx]
@@ -135,15 +156,19 @@ def find_crossovers(
                 break
         if chosen_idx is not None:
             valid_indices.append(chosen_idx)
+            valid_sources.append(i)
 
     if len(valid_indices) == 0:
         return []
 
     target_coords = kdt.data[valid_indices]
+    source_coords = source_points[valid_sources]
 
     # Cluster the chosen valid neighbors and find representatives
-    reps = cluster_points(target_coords, eps=cluster_dist, min_samples=min_samples)
-    return [r.tolist() for r in reps]
+    reps, reps_inds = cluster_points(target_coords, eps=cluster_dist, min_samples=min_samples)
+    source_reps = source_coords[reps_inds]
+
+    return [(p[0].tolist(), p[1].tolist()) for p in zip(source_reps, reps)]
 
 
 def load_graphs_from_dir(swcdir: str) -> Dict[int, NeuronGraph]:
@@ -261,7 +286,7 @@ def main() -> None:
     # Each line: "x y z"
     with open(output_file, "w") as f:
         for coord in all_crossovers:
-            f.write(f"{coord[0]} {coord[1]} {coord[2]}\n")
+            f.write(f"{coord[0]} {coord[1]}\n")
 
     t1 = time.time()
     print("Total time:", t1 - t0)
