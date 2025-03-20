@@ -2,7 +2,7 @@ import argparse
 import os
 from collections import defaultdict
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 
 import networkx as nx
 
@@ -68,7 +68,9 @@ def collect_swcs(directory: str, ignore_list: List[str]) -> List[str]:
     return swc_files
 
 
-def merge_swcs(files: List[str]) -> NeuronGraph:
+def merge_swcs(files: List[str], 
+               axon_file: Optional[str] = None,
+               dendrite_file: Optional[str] = None) -> NeuronGraph:
     """
     Merge the given graphs based on whether they represent axon or dendrite.
 
@@ -76,7 +78,11 @@ def merge_swcs(files: List[str]) -> NeuronGraph:
     ----------
     files : List[str]
         List of file names corresponding to the graphs.
-
+    axon_file : Optional[str], default=None
+        File name for the axon graph. If None, it will be inferred from `files`.
+    dendrite_file : Optional[str], default=None
+        File name for the dendrite graph. If None, it will be inferred from `files`.
+    
     Returns
     -------
     NeuronGraph
@@ -90,10 +96,13 @@ def merge_swcs(files: List[str]) -> NeuronGraph:
     if len(files) != 2:
         raise ValueError(f"Expected 2 graphs to merge, got {len(files)}")
 
-    dendrite_file = next(
-        (f for f in files if "dendrite" in Path(f).name.lower()), None
-    )
-    axon_file = next((f for f in files if "axon" in Path(f).name.lower()), None)
+    if dendrite_file is None:
+        dendrite_file = next(
+            (f for f in files if "dendrite" in Path(f).name.lower()), None
+        )
+    
+    if axon_file is None:
+        axon_file = next((f for f in files if "axon" in Path(f).name.lower()), None)
 
     if not dendrite_file or not axon_file:
         raise ValueError("Could not find both axon and dendrite files")
