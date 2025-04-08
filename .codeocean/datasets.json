@@ -20,6 +20,14 @@
 		{
 			"id": "b332ce4e-21b0-4321-833b-c3ded6bf031a",
 			"mount": "650010_cells_medulla_refined"
+		},
+		{
+			"id": "cc05d27a-b7ee-40a1-acb7-10eec1cc40ab",
+			"mount": "exaSPIM_658735_2023-08-15_16-13-50_fusion_2023-09-01"
+		},
+		{
+			"id": "d0157416-e713-4699-bfdc-c89b2cb3b5a1",
+			"mount": "658735_cells_medulla_refined"
 		}
 	]
 }
