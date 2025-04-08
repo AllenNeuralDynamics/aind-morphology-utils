@@ -1,0 +1,33 @@
+{
+	"version": 1,
+	"base_image": "codeocean/mambaforge3:23.1.0-4-python3.10.12-ubuntu22.04",
+	"options": {
+		"registry_host_arg": true,
+		"git_ask_pass": true
+	},
+	"installers": {
+		"vscode": {
+			"packages": [
+				{
+					"name": "REditorSupport.R"
+				},
+				{
+					"name": "continue.continue"
+				},
+				{
+					"name": "ms-python.python"
+				},
+				{
+					"name": "ms-toolsai.jupyter"
+				},
+				{
+					"name": "reageyao.bioSyntax"
+				},
+				{
+					"name": "saoudrizwan.claude-dev"
+				}
+			],
+			"version": "4.95.3"
+		}
+	}
+}

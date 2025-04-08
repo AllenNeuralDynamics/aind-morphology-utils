@@ -1,0 +1,25 @@
+{
+	"version": 1,
+	"attached_datasets": [
+		{
+			"id": "4c120003-6e1b-4710-ba71-5ba30d725a71",
+			"mount": "613814_cells_medulla_refined"
+		},
+		{
+			"id": "56a61b1f-8997-4209-b051-e68853e2dcd1",
+			"mount": "exaSPIM_CCF_Completed"
+		},
+		{
+			"id": "71141e9e-3c2b-4304-aa5e-2eb2ccbb560e",
+			"mount": "exaSPIM_650010_2023-04-04_17-42-51_fusion_2023-04-23_11-35-00"
+		},
+		{
+			"id": "87577f08-7495-4b08-967a-53362d14721a",
+			"mount": "exaSPIM_613814_2023-04-15_13-02-26_fusion_2023-04-26_15-08-00"
+		},
+		{
+			"id": "b332ce4e-21b0-4321-833b-c3ded6bf031a",
+			"mount": "650010_cells_medulla_refined"
+		}
+	]
+}
