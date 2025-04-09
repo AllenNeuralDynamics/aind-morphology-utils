@@ -2,6 +2,18 @@
 	"version": 1,
 	"attached_datasets": [
 		{
+			"id": "01b51139-e510-459b-ae48-59ad073d5ec8",
+			"mount": "exaSPIM_665081_2023-09-18_15-20-19_fusion_2023-12-18_17-28-00"
+		},
+		{
+			"id": "13533ef2-99da-4c27-bb68-e4213c7f6e31",
+			"mount": "653159_cells_medulla_refined"
+		},
+		{
+			"id": "3b32bfa0-bf45-467e-8d7b-27ff77bf059b",
+			"mount": "exaSPIM_674185_2023-10-02_14-06-36_flatfield-correction_2023-11-17_00-33-17_fusion_2023-11-23_12-56-00"
+		},
+		{
 			"id": "4c120003-6e1b-4710-ba71-5ba30d725a71",
 			"mount": "613814_cells_medulla_refined"
 		},
@@ -10,12 +22,24 @@
 			"mount": "exaSPIM_CCF_Completed"
 		},
 		{
+			"id": "56f537ba-ae71-4e10-88b8-9703f62bd5b0",
+			"mount": "exaSPIM_674191_2023-09-12_12-37-37_flatfield-correction_2023-11-17_00-21-42_fusion_2023-12-02_23-56-00"
+		},
+		{
 			"id": "71141e9e-3c2b-4304-aa5e-2eb2ccbb560e",
 			"mount": "exaSPIM_650010_2023-04-04_17-42-51_fusion_2023-04-23_11-35-00"
 		},
 		{
 			"id": "87577f08-7495-4b08-967a-53362d14721a",
 			"mount": "exaSPIM_613814_2023-04-15_13-02-26_fusion_2023-04-26_15-08-00"
+		},
+		{
+			"id": "9504cc64-b877-4e3e-af0d-8b7269514598",
+			"mount": "exaSPIM_675375_2024-02-27_18-50-24_fusion_2024-03-13_00-01-10"
+		},
+		{
+			"id": "a4459d65-5ea7-433e-ae40-1a7e3d4907fb",
+			"mount": "675375_cells_medulla_refined"
 		},
 		{
 			"id": "b332ce4e-21b0-4321-833b-c3ded6bf031a",
@@ -32,6 +56,22 @@
 		{
 			"id": "d0157416-e713-4699-bfdc-c89b2cb3b5a1",
 			"mount": "658735_cells_medulla_refined"
+		},
+		{
+			"id": "d6793213-57d8-4183-bb85-bfa3d59fe56e",
+			"mount": "674191_cells_medulla_refined"
+		},
+		{
+			"id": "d7493b5a-e542-49e3-8f56-d49ea41283b1",
+			"mount": "exaSPIM_653159_2024-02-05_15-38-38_fusion_2024-02-21_01-44-06"
+		},
+		{
+			"id": "dc457f56-9ec2-44eb-a996-fd99ff21e3d6",
+			"mount": "665081_cells_medulla_refined"
+		},
+		{
+			"id": "f27f8efd-5f9e-4b7f-bce4-e969fa1267dc",
+			"mount": "674185_cells_medulla_refined"
 		}
 	]
 }
