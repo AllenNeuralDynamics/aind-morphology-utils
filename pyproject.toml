@@ -26,7 +26,8 @@ dependencies = [
     "networkx",
     "ome-zarr",
     "scikit-learn",
-    "tensorstore"
+    "tensorstore",
+    "pandas"
 ]
 
 [project.optional-dependencies]

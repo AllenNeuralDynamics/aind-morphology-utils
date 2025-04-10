@@ -2,6 +2,8 @@ import unittest
 from unittest import mock
 
 import networkx as nx
+import pandas as pd
+from pandas.testing import assert_frame_equal
 
 from aind_morphology_utils.swc import NeuronGraph
 
@@ -139,6 +141,23 @@ class TestNeuronGraph(unittest.TestCase):
             with self.assertRaises(IOError):
                 graph.save_swc("dummy_path.swc")
 
+    def test_to_dataframe(self):
+        """Test converting the graph to a pandas DataFrame with exact match."""
 
+        graph = self.create_graph_from_mock_data()
+        df = graph.to_dataframe()
+        
+        expected_df = pd.DataFrame.from_dict(
+            {
+                0: {"node_id":1, "struct_type": 1, "x": 0.0, "y": 0.0, "z": 0.0, "radius": 0.5, "parent_id": -1},
+                1: {"node_id":2, "struct_type": 3, "x": 1.0, "y": 0.0, "z": 0.0, "radius": 0.3, "parent_id": 1},
+                2: {"node_id":3, "struct_type": 3, "x": 1.0, "y": 1.0, "z": 0.0, "radius": 0.4, "parent_id": 1},
+                3: {"node_id":4, "struct_type": 2, "x": 0.0, "y": 1.0, "z": 0.0, "radius": 0.6, "parent_id": 1},
+            },
+            orient="index",
+        ).astype(df.dtypes.to_dict()) 
+        assert_frame_equal(df.sort_index(), expected_df.sort_index())
+        
+        
 if __name__ == "__main__":
     unittest.main()
