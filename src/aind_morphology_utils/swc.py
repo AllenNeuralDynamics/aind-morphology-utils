@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Dict
 
 import networkx as nx
+import pandas as pd
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -188,3 +189,42 @@ class NeuronGraph(nx.DiGraph):
         except IOError as e:
             _LOGGER.error(f"Error saving file {swc_path}: {e}")
             raise
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """
+        Convert the NeuronGraph to a pandas DataFrame with SWC-style columns.
+
+        Returns
+        -------
+        pd.DataFrame
+            A DataFrame with columns:
+            ['node_id', 'struct_type', 'x', 'y', 'z', 'radius', 'parent_id']
+
+        Raises
+        ------
+        KeyError
+            If required node attributes are missing.
+        """
+        rows = []
+        for node in sorted(self.nodes()):
+            attrs = self.nodes[node]
+            try:
+                x, y, z, radius, struct_type = (
+                    attrs[attr]
+                    for attr in ["x", "y", "z", "radius", "struct_type"]
+                )
+            except KeyError as e:
+                raise KeyError(f"Missing required attribute {e} for node {node}")
+
+            parent_id = next(iter(self.predecessors(node)), -1)
+            rows.append({
+                "node_id": int(node),
+                "struct_type": int(struct_type),
+                "x": float(x),
+                "y": float(y),
+                "z": float(z),
+                "radius": float(radius),
+                "parent_id": int(parent_id)
+            })
+
+        return pd.DataFrame(rows)
