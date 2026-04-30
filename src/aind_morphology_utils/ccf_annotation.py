@@ -67,17 +67,25 @@ class CCFMorphologyMapper:
             structure_graph_id=structure_graph_id
         )
         inv_dir_mat = np.linalg.inv(self.direction_matrix)
+        volume_shape = np.array(self.volume.shape)
         for c in morphology.compartment_list:
             pos = np.array([c["x"], c["y"], c["z"]])
-            pos_px = np.dot(pos, inv_dir_mat).astype(int)
-            try:
-                ccf_region_id = self.volume[tuple(pos_px)]
-            except IndexError:
+            pos_px = np.dot(pos, inv_dir_mat)
+            if (
+                not np.all(np.isfinite(pos_px))
+                or np.any(pos_px < 0)
+            ):
                 # ID of 0 indicates point is outside CCF space
                 # This can happen for e.g., poorly registered tracings, or for
                 # neurons that project to the spinal cord,
                 # or other areas not represented in the CCF space.
                 ccf_region_id = 0
+            else:
+                pos_px = np.rint(pos_px).astype(int)
+                if np.any(pos_px >= volume_shape):
+                    ccf_region_id = 0
+                else:
+                    ccf_region_id = self.volume[tuple(pos_px)]
             structure = tree.get_structures_by_id([ccf_region_id])[0]
             if structure is not None:
                 c["allenInformation"] = structure
