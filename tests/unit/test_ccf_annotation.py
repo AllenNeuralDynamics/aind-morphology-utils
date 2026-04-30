@@ -1,5 +1,6 @@
 import unittest
 
+import numpy as np
 from allensdk.core.swc import Compartment, Morphology
 
 from aind_morphology_utils.ccf_annotation import CCFMorphologyMapper
@@ -190,6 +191,25 @@ def _create_expected_morphology():
     return Morphology(compartments)
 
 
+class _FakeStructureTree:
+    def __init__(self, structures):
+        self.structures = structures
+
+    def get_structures_by_id(self, structure_ids):
+        return [
+            self.structures.get(int(structure_id))
+            for structure_id in structure_ids
+        ]
+
+
+class _FakeReferenceSpaceCache:
+    def __init__(self, tree):
+        self.tree = tree
+
+    def get_structure_tree(self, structure_graph_id=1):
+        return self.tree
+
+
 class TestCCFMorphologyMapper(unittest.TestCase):
     def test_annotate_morphology(self):
         morph = _create_test_morphology()
@@ -201,6 +221,115 @@ class TestCCFMorphologyMapper(unittest.TestCase):
         expected_morph = _create_expected_morphology()
         for i in range(expected_morph.num_nodes):
             self.assertEqual(expected_morph.node(i), morph.node(i))
+
+    def test_annotate_morphology_rejects_out_of_bounds_voxels(self):
+        valid_structure = {"id": 123, "name": "valid"}
+        wrapped_structures = {
+            996: {"id": 996, "name": "wrapped from tiny negative x"},
+            997: {"id": 997, "name": "wrapped from negative z"},
+            998: {"id": 998, "name": "wrapped from negative y"},
+            999: {"id": 999, "name": "wrapped from negative x"},
+        }
+        tree = _FakeStructureTree({123: valid_structure, **wrapped_structures})
+
+        mapper = CCFMorphologyMapper.__new__(CCFMorphologyMapper)
+        mapper.direction_matrix = np.eye(3)
+        mapper.volume = np.zeros((3, 3, 3), dtype=int)
+        mapper.volume[1, 1, 1] = 123
+        mapper.volume[0, 1, 1] = 996
+        mapper.volume[1, 1, -1] = 997
+        mapper.volume[1, -1, 1] = 998
+        mapper.volume[-1, 1, 1] = 999
+        mapper._ref_space_cache = _FakeReferenceSpaceCache(tree)
+
+        compartments = [
+            {
+                "id": 1,
+                "type": 2,
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0,
+                "radius": 1.0,
+                "parent": -1,
+                "tree_id": -1,
+                "children": [],
+            },
+            {
+                "id": 2,
+                "type": 2,
+                "x": -1.0,
+                "y": 1.0,
+                "z": 1.0,
+                "radius": 1.0,
+                "parent": 1,
+                "tree_id": -1,
+                "children": [],
+            },
+            {
+                "id": 3,
+                "type": 2,
+                "x": 1.0,
+                "y": -1.0,
+                "z": 1.0,
+                "radius": 1.0,
+                "parent": 2,
+                "tree_id": -1,
+                "children": [],
+            },
+            {
+                "id": 4,
+                "type": 2,
+                "x": 1.0,
+                "y": 1.0,
+                "z": -1.0,
+                "radius": 1.0,
+                "parent": 3,
+                "tree_id": -1,
+                "children": [],
+            },
+            {
+                "id": 5,
+                "type": 2,
+                "x": 3.0,
+                "y": 1.0,
+                "z": 1.0,
+                "radius": 1.0,
+                "parent": 4,
+                "tree_id": -1,
+                "children": [],
+            },
+            {
+                "id": 6,
+                "type": 2,
+                "x": -0.1,
+                "y": 1.0,
+                "z": 1.0,
+                "radius": 1.0,
+                "parent": 5,
+                "tree_id": -1,
+                "children": [],
+            },
+            {
+                "id": 7,
+                "type": 2,
+                "x": np.nan,
+                "y": 1.0,
+                "z": 1.0,
+                "radius": 1.0,
+                "parent": 6,
+                "tree_id": -1,
+                "children": [],
+            },
+        ]
+        morph = Morphology([Compartment(**c) for c in compartments])
+
+        mapper.annotate_morphology(morph)
+
+        self.assertEqual(
+            valid_structure, morph.compartment_list[0]["allenInformation"]
+        )
+        for compartment in morph.compartment_list[1:]:
+            self.assertNotIn("allenInformation", compartment)
 
 
 if __name__ == "__main__":
