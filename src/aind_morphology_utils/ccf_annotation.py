@@ -74,7 +74,6 @@ class CCFMorphologyMapper:
             if (
                 not np.all(np.isfinite(pos_px))
                 or np.any(pos_px < 0)
-                or np.any(pos_px >= volume_shape)
             ):
                 # ID of 0 indicates point is outside CCF space
                 # This can happen for e.g., poorly registered tracings, or for
@@ -82,8 +81,11 @@ class CCFMorphologyMapper:
                 # or other areas not represented in the CCF space.
                 ccf_region_id = 0
             else:
-                pos_px = pos_px.astype(int)
-                ccf_region_id = self.volume[tuple(pos_px)]
+                pos_px = np.rint(pos_px).astype(int)
+                if np.any(pos_px >= volume_shape):
+                    ccf_region_id = 0
+                else:
+                    ccf_region_id = self.volume[tuple(pos_px)]
             structure = tree.get_structures_by_id([ccf_region_id])[0]
             if structure is not None:
                 c["allenInformation"] = structure

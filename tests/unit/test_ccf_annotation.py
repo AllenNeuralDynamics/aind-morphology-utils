@@ -222,20 +222,28 @@ class TestCCFMorphologyMapper(unittest.TestCase):
         for i in range(expected_morph.num_nodes):
             self.assertEqual(expected_morph.node(i), morph.node(i))
 
-    def test_annotate_morphology_rejects_out_of_bounds_voxels(self):
+    def test_annotate_morphology_rounds_and_rejects_out_of_bounds_voxels(self):
         valid_structure = {"id": 123, "name": "valid"}
+        rounded_structure = {"id": 124, "name": "rounded"}
         wrapped_structures = {
             996: {"id": 996, "name": "wrapped from tiny negative x"},
             997: {"id": 997, "name": "wrapped from negative z"},
             998: {"id": 998, "name": "wrapped from negative y"},
             999: {"id": 999, "name": "wrapped from negative x"},
         }
-        tree = _FakeStructureTree({123: valid_structure, **wrapped_structures})
+        tree = _FakeStructureTree(
+            {
+                123: valid_structure,
+                124: rounded_structure,
+                **wrapped_structures,
+            }
+        )
 
         mapper = CCFMorphologyMapper.__new__(CCFMorphologyMapper)
         mapper.direction_matrix = np.eye(3)
-        mapper.volume = np.zeros((3, 3, 3), dtype=int)
+        mapper.volume = np.zeros((4, 3, 3), dtype=int)
         mapper.volume[1, 1, 1] = 123
+        mapper.volume[2, 1, 1] = 124
         mapper.volume[0, 1, 1] = 996
         mapper.volume[1, 1, -1] = 997
         mapper.volume[1, -1, 1] = 998
@@ -257,7 +265,7 @@ class TestCCFMorphologyMapper(unittest.TestCase):
             {
                 "id": 2,
                 "type": 2,
-                "x": -1.0,
+                "x": 1.6,
                 "y": 1.0,
                 "z": 1.0,
                 "radius": 1.0,
@@ -268,8 +276,8 @@ class TestCCFMorphologyMapper(unittest.TestCase):
             {
                 "id": 3,
                 "type": 2,
-                "x": 1.0,
-                "y": -1.0,
+                "x": -1.0,
+                "y": 1.0,
                 "z": 1.0,
                 "radius": 1.0,
                 "parent": 2,
@@ -280,8 +288,8 @@ class TestCCFMorphologyMapper(unittest.TestCase):
                 "id": 4,
                 "type": 2,
                 "x": 1.0,
-                "y": 1.0,
-                "z": -1.0,
+                "y": -1.0,
+                "z": 1.0,
                 "radius": 1.0,
                 "parent": 3,
                 "tree_id": -1,
@@ -290,9 +298,9 @@ class TestCCFMorphologyMapper(unittest.TestCase):
             {
                 "id": 5,
                 "type": 2,
-                "x": 3.0,
+                "x": 1.0,
                 "y": 1.0,
-                "z": 1.0,
+                "z": -1.0,
                 "radius": 1.0,
                 "parent": 4,
                 "tree_id": -1,
@@ -301,7 +309,7 @@ class TestCCFMorphologyMapper(unittest.TestCase):
             {
                 "id": 6,
                 "type": 2,
-                "x": -0.1,
+                "x": 3.6,
                 "y": 1.0,
                 "z": 1.0,
                 "radius": 1.0,
@@ -312,11 +320,22 @@ class TestCCFMorphologyMapper(unittest.TestCase):
             {
                 "id": 7,
                 "type": 2,
-                "x": np.nan,
+                "x": -0.1,
                 "y": 1.0,
                 "z": 1.0,
                 "radius": 1.0,
                 "parent": 6,
+                "tree_id": -1,
+                "children": [],
+            },
+            {
+                "id": 8,
+                "type": 2,
+                "x": np.nan,
+                "y": 1.0,
+                "z": 1.0,
+                "radius": 1.0,
+                "parent": 7,
                 "tree_id": -1,
                 "children": [],
             },
@@ -328,7 +347,10 @@ class TestCCFMorphologyMapper(unittest.TestCase):
         self.assertEqual(
             valid_structure, morph.compartment_list[0]["allenInformation"]
         )
-        for compartment in morph.compartment_list[1:]:
+        self.assertEqual(
+            rounded_structure, morph.compartment_list[1]["allenInformation"]
+        )
+        for compartment in morph.compartment_list[2:]:
             self.assertNotIn("allenInformation", compartment)
 
 
